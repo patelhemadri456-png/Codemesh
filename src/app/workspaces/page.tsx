@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import CreateRoomModal from "@/components/CreateRoomModal";
 import JoinRoomModal from "@/components/JoinRoomModal";
 import { WorkspaceProject } from "@/types/workspace";
@@ -55,7 +56,7 @@ export default function WorkspacesPage() {
         <div className="max-w-6xl mx-auto mt-4">
           {/* Notification Banner */}
           {notice && (
-            <div className="mb-4 bg-[#201f1f] border border-[#adc6ff] text-[#adc6ff] px-4 py-2 rounded-md text-xs font-code flex items-center gap-2">
+            <div className="mb-4 bg-[#181818] border border-[#adc6ff] text-[#adc6ff] px-4 py-2 rounded-sm text-xs font-code flex items-center gap-2">
               <span className="material-symbols-outlined text-[16px]">info</span>
               <span>{notice}</span>
             </div>
@@ -73,7 +74,7 @@ export default function WorkspacesPage() {
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
                 onClick={() => setShowJoinModal(true)}
-                className="px-4 py-2 border border-[#424754] text-[#e5e2e1] rounded text-sm font-medium hover:bg-[#201f1f] transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none"
+                className="px-4 py-2 border border-[#383b47] text-[#e5e2e1] rounded-sm text-sm font-medium hover:bg-[#1c1b1b] transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none"
               >
                 <span className="material-symbols-outlined text-[18px] text-[#adc6ff]">
                   group_add
@@ -82,7 +83,7 @@ export default function WorkspacesPage() {
               </button>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-[#adc6ff] text-[#002e6a] rounded text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#d8e2ff] transition-all shadow-[0_0_15px_rgba(173,198,255,0.25)] flex-1 sm:flex-none"
+                className="px-4 py-2 bg-[#adc6ff] text-[#002e6a] rounded-sm text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#d8e2ff] transition-all shadow-[0_0_15px_rgba(173,198,255,0.25)] flex-1 sm:flex-none"
               >
                 <span className="material-symbols-outlined text-[18px]">add</span>
                 New Workspace
@@ -101,7 +102,7 @@ export default function WorkspacesPage() {
                 placeholder="Search workspaces by name, stack, or tag..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#1c1b1b] border border-[#424754] rounded-md pl-10 pr-4 py-2 font-code text-xs text-[#e5e2e1] focus:border-[#adc6ff] focus:outline-none transition-colors placeholder:text-[#8c909f]"
+                className="w-full bg-[#181818] border border-[#2d2d2d] rounded-sm pl-10 pr-4 py-2 font-code text-xs text-[#e5e2e1] focus:border-[#adc6ff] focus:outline-none transition-colors placeholder:text-[#8c909f]"
               />
             </div>
           </div>
@@ -112,7 +113,7 @@ export default function WorkspacesPage() {
               <Link
                 key={ws.id}
                 href={`/workspace/${ws.id}`}
-                className="bg-[#201f1f] pane-border rounded-lg flex flex-col hover:border-[#adc6ff] transition-colors cursor-pointer group overflow-hidden shadow-lg"
+                className="bg-[#181818] border border-[#2d2d2d] rounded-lg flex flex-col hover:border-[#adc6ff] transition-colors cursor-pointer group overflow-hidden shadow-lg"
               >
                 <div className="p-4 border-b border-[#2d2d2d] flex justify-between items-center bg-[#1c1b1b]">
                   <div className="flex items-center gap-2">
@@ -128,7 +129,7 @@ export default function WorkspacesPage() {
                       {Array.from({ length: ws.membersCount || 2 }).map((_, i) => (
                         <div
                           key={i}
-                          className={`w-6 h-6 rounded-full border border-[#201f1f] flex items-center justify-center text-[9px] font-bold ${
+                          className={`w-6 h-6 rounded-full border border-[#1c1b1b] flex items-center justify-center text-[9px] font-bold ${
                             i === 0
                               ? "bg-[#4d8eff] text-white"
                               : i === 1
@@ -158,10 +159,10 @@ export default function WorkspacesPage() {
                     {ws.tags?.map((t, i) => (
                       <span
                         key={i}
-                        className={`px-2 py-0.5 rounded font-code text-[11px] border ${
+                        className={`px-2 py-0.5 rounded-sm font-code text-[11px] border ${
                           t.variant === "primary"
                             ? "bg-[#001a42] text-[#adc6ff] border-[#00285d]"
-                            : "bg-[#2a2a2a] text-[#c2c6d6] border-[#353534]"
+                            : "bg-[#252525] text-[#c2c6d6] border-[#353534]"
                         }`}
                       >
                         {t.name}
@@ -183,7 +184,7 @@ export default function WorkspacesPage() {
           </div>
 
           {filteredWorkspaces.length === 0 && (
-            <div className="text-center py-16 bg-[#1c1b1b] rounded-lg border border-[#424754]/50 p-6">
+            <div className="text-center py-16 bg-[#181818] rounded-lg border border-[#2d2d2d] p-6">
               <span className="material-symbols-outlined text-4xl text-[#8c909f] mb-2">
                 folder_off
               </span>
@@ -200,6 +201,8 @@ export default function WorkspacesPage() {
           )}
         </div>
       </main>
+
+      <Footer />
 
       {showCreateModal && (
         <CreateRoomModal

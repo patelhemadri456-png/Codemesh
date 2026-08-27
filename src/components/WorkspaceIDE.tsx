@@ -7,6 +7,7 @@ import { WorkspaceFile, RoomMember, AIChatMessage } from "@/types/workspace";
 import { getRoomFiles, saveRoomFiles } from "@/lib/roomStorage";
 import { executeCodeInBrowser } from "@/lib/codeRunner";
 import { getUserSession, UserSession } from "@/lib/authSession";
+import EditorSettingsModal from "./EditorSettingsModal";
 import confetti from "canvas-confetti";
 
 // Dynamically import Monaco Editor to prevent SSR issues
@@ -26,14 +27,28 @@ interface WorkspaceIDEProps {
 
 export default function WorkspaceIDE({ roomId = "workspace-default" }: WorkspaceIDEProps) {
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
-  const [activeFileId, setActiveFileId] = useState<string>("");
-  const [openTabIds, setOpenTabIds] = useState<string[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string>("f1");
+  const [openTabIds, setOpenTabIds] = useState<string[]>(["f1"]);
   const [activeTabPanel, setActiveTabPanel] = useState<"terminal" | "output" | "problems">("terminal");
   const [activeActivity, setActiveActivity] = useState<"explorer" | "search" | "git" | "run" | "ai">("explorer");
   const [showAIPanel, setShowAIPanel] = useState(true);
   const [editorNotice, setEditorNotice] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
   const [user, setUser] = useState<UserSession | null>(null);
+
+  // Editor Settings
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [fontSize, setFontSize] = useState<number>(14);
+  const [tabSize, setTabSize] = useState<number>(2);
+  const [wordWrap, setWordWrap] = useState<boolean>(true);
+
+  // Search & Git Drawer States
+  const [searchFilter, setSearchFilter] = useState("");
+  const [commitMessage, setCommitMessage] = useState("");
+  const [gitHistory, setGitHistory] = useState<string[]>([
+    "commit 9923490 - Initial project setup",
+    "commit 00788fe - Monaco IDE & Gemini RAG integration",
+  ]);
 
   // New File State
   const [isCreatingFile, setIsCreatingFile] = useState(false);
@@ -81,7 +96,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
     ]);
   }, [roomId]);
 
-  // Dynamic Members with current logged in user
+  // Dynamic Members
   const members: RoomMember[] = [
     {
       id: "m_user",
@@ -129,7 +144,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
         return updated;
       });
 
-      setTimeout(() => setSaveStatus("saved"), 400);
+      setTimeout(() => setSaveStatus("saved"), 350);
     },
     [activeFileId, roomId]
   );
@@ -199,7 +214,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
     setTimeout(() => setEditorNotice(null), 2500);
   };
 
-  // Real In-Browser Code Execution Runner
+  // Real In-Browser Execution Runner
   const handleRunActiveFile = () => {
     if (!activeFile) return;
     setActiveTabPanel("terminal");
@@ -220,7 +235,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
     setTimeout(() => setEditorNotice(null), 2500);
   };
 
-  // Handle Terminal Commands
+  // Terminal Commands
   const handleTerminalSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cmd = terminalInput.trim();
@@ -392,14 +407,20 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
     setTimeout(() => setEditorNotice(null), 3000);
   };
 
-  if (files.length === 0 || !activeFile) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#131313] text-[#adc6ff] font-code text-sm">
-        <span className="w-2 h-2 rounded-full bg-[#adc6ff] animate-ping mr-3"></span>
-        Loading Workspace {roomId}...
-      </div>
-    );
-  }
+  const handleGitCommit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commitMessage.trim()) return;
+    const timestamp = new Date().toLocaleTimeString();
+    const shortHash = Math.random().toString(16).substring(2, 9);
+    setGitHistory((prev) => [`commit ${shortHash} - ${commitMessage.trim()} (${timestamp})`, ...prev]);
+    setCommitMessage("");
+    setEditorNotice(`Committed [${shortHash}]: ${commitMessage}`);
+    setTimeout(() => setEditorNotice(null), 3000);
+  };
+
+  const filteredFiles = files.filter((f) =>
+    f.name.toLowerCase().includes(searchFilter.toLowerCase())
+  );
 
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#131313] text-[#e5e2e1]">
@@ -408,26 +429,50 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Activity Bar */}
-        <aside className="bg-[#131313] border-r border-[#424754]/50 w-12 flex flex-col items-center py-2 z-40 shrink-0 select-none">
-          <div className="flex flex-col gap-2 w-full">
+        <aside className="bg-[#101010] border-r border-[#2d2d2d] w-12 flex flex-col items-center py-2 z-40 shrink-0 select-none">
+          <div className="flex flex-col gap-1.5 w-full">
             <button
               onClick={() => setActiveActivity("explorer")}
               className={`w-full flex justify-center py-2.5 transition-colors ${
                 activeActivity === "explorer"
-                  ? "border-l-2 border-[#adc6ff] bg-[#353534]/50 text-[#adc6ff]"
-                  : "text-[#c2c6d6] hover:bg-[#201f1f]"
+                  ? "border-l-2 border-[#adc6ff] bg-[#201f1f] text-[#adc6ff]"
+                  : "text-[#8c909f] hover:text-[#e5e2e1] hover:bg-[#181818]"
               }`}
-              title="Explorer (Files & Members)"
+              title="Explorer"
             >
-              <span className="material-symbols-outlined text-[20px]">folder_open</span>
+              <span className="material-symbols-outlined text-[19px]">folder_open</span>
+            </button>
+
+            <button
+              onClick={() => setActiveActivity("search")}
+              className={`w-full flex justify-center py-2.5 transition-colors ${
+                activeActivity === "search"
+                  ? "border-l-2 border-[#adc6ff] bg-[#201f1f] text-[#adc6ff]"
+                  : "text-[#8c909f] hover:text-[#e5e2e1] hover:bg-[#181818]"
+              }`}
+              title="Search in Workspace"
+            >
+              <span className="material-symbols-outlined text-[19px]">search</span>
+            </button>
+
+            <button
+              onClick={() => setActiveActivity("git")}
+              className={`w-full flex justify-center py-2.5 transition-colors ${
+                activeActivity === "git"
+                  ? "border-l-2 border-[#adc6ff] bg-[#201f1f] text-[#adc6ff]"
+                  : "text-[#8c909f] hover:text-[#e5e2e1] hover:bg-[#181818]"
+              }`}
+              title="Source Control (Git)"
+            >
+              <span className="material-symbols-outlined text-[19px]">grid_view</span>
             </button>
 
             <button
               onClick={handleRunActiveFile}
               className="w-full flex justify-center py-2.5 text-[#ffb786] hover:bg-[#201f1f] transition-colors"
-              title="Run Active File (Live Sandbox)"
+              title="Run Active File"
             >
-              <span className="material-symbols-outlined text-[20px]">play_arrow</span>
+              <span className="material-symbols-outlined text-[19px]">play_arrow</span>
             </button>
 
             <button
@@ -439,29 +484,29 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
               }`}
               title="Toggle AI Assistant"
             >
-              <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
-            </button>
-
-            <button
-              onClick={handleExportWorkspace}
-              className="w-full flex justify-center py-2.5 text-[#c2c6d6] hover:text-[#adc6ff] hover:bg-[#201f1f] transition-colors"
-              title="Export All Files"
-            >
-              <span className="material-symbols-outlined text-[20px]">download</span>
-            </button>
-
-            <button
-              onClick={handleShareRoom}
-              className="w-full flex justify-center py-2.5 text-[#adc6ff] hover:bg-[#201f1f] transition-colors"
-              title="Share Invite Link"
-            >
-              <span className="material-symbols-outlined text-[20px]">share</span>
+              <span className="material-symbols-outlined text-[19px]">auto_awesome</span>
             </button>
           </div>
 
-          <div className="mt-auto flex flex-col gap-3 w-full pb-2">
+          <div className="mt-auto flex flex-col gap-2 w-full pb-2">
+            <button
+              onClick={handleExportWorkspace}
+              className="w-full flex justify-center py-2 text-[#8c909f] hover:text-[#adc6ff] hover:bg-[#181818] transition-colors"
+              title="Export All Files"
+            >
+              <span className="material-symbols-outlined text-[18px]">download</span>
+            </button>
+
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="w-full flex justify-center py-2 text-[#8c909f] hover:text-[#adc6ff] hover:bg-[#181818] transition-colors"
+              title="Editor Settings"
+            >
+              <span className="material-symbols-outlined text-[18px]">settings</span>
+            </button>
+
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center mx-auto text-xs font-bold text-white shadow border border-[#424754]"
+              className="w-6 h-6 rounded-full flex items-center justify-center mx-auto text-[10px] font-bold text-white shadow border border-[#424754]"
               style={{ backgroundColor: user?.avatarColor || "#4d8eff" }}
               title={user?.isLoggedIn ? `@${user.handle}` : "Guest User"}
             >
@@ -470,133 +515,204 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
           </div>
         </aside>
 
-        {/* Sidebar Panel (Explorer) */}
-        <div className="w-64 bg-[#181818] border-r border-[#424754]/50 flex flex-col shrink-0">
-          <div className="p-3 border-b border-[#424754]/50 flex justify-between items-center bg-[#1c1b1b]">
-            <span className="font-code text-xs font-semibold text-[#c2c6d6] tracking-wider">
-              EXPLORER
-            </span>
-            <button
-              onClick={() => setIsCreatingFile(!isCreatingFile)}
-              className="p-1 rounded text-[#c2c6d6] hover:text-[#adc6ff] hover:bg-[#2a2a2a] transition-colors"
-              title="New File"
-            >
-              <span className="material-symbols-outlined text-[17px]">note_add</span>
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {/* New File Inline Input */}
-            {isCreatingFile && (
-              <form onSubmit={handleCreateFile} className="p-2 bg-[#201f1f] border-b border-[#424754]">
-                <input
-                  type="text"
-                  placeholder="e.g. server.py or helper.ts"
-                  value={newFileName}
-                  onChange={(e) => setNewFileName(e.target.value)}
-                  autoFocus
-                  className="w-full bg-[#121212] border border-[#adc6ff] rounded px-2 py-1 font-code text-xs text-[#e5e2e1] focus:outline-none placeholder:text-[#8c909f]"
-                />
-              </form>
-            )}
-
-            {/* Project Files */}
-            <div className="py-2">
-              <div className="px-3 py-1 flex items-center gap-2 text-xs font-semibold text-[#e5e2e1]">
-                <span className="material-symbols-outlined text-[16px] text-[#c2c6d6]">
-                  expand_more
+        {/* Sidebar Panel */}
+        <div className="w-64 bg-[#181818] border-r border-[#2d2d2d] flex flex-col shrink-0">
+          {/* Explorer View */}
+          {activeActivity === "explorer" && (
+            <>
+              <div className="p-3 border-b border-[#2d2d2d] flex justify-between items-center bg-[#1c1b1b]">
+                <span className="font-code text-[11px] font-semibold text-[#c2c6d6] tracking-wider uppercase">
+                  EXPLORER
                 </span>
-                <span className="font-code text-xs">{roomId}/</span>
+                <button
+                  onClick={() => setIsCreatingFile(!isCreatingFile)}
+                  className="p-1 rounded text-[#8c909f] hover:text-[#adc6ff] hover:bg-[#2a2a2a] transition-colors"
+                  title="New File"
+                >
+                  <span className="material-symbols-outlined text-[17px]">note_add</span>
+                </button>
               </div>
 
-              {files.map((file) => {
-                const isSelected = activeFileId === file.id;
-                const iconColor =
-                  file.name.endsWith(".py")
-                    ? "text-[#519aba]"
-                    : file.name.endsWith(".json")
-                    ? "text-[#cbcb41]"
-                    : file.name.endsWith(".rs") || file.name.endsWith(".toml")
-                    ? "text-[#ffb786]"
-                    : file.name.endsWith(".ts") || file.name.endsWith(".js")
-                    ? "text-[#4d8eff]"
-                    : "text-[#adc6ff]";
+              <div className="flex-1 overflow-y-auto">
+                {isCreatingFile && (
+                  <form onSubmit={handleCreateFile} className="p-2 bg-[#201f1f] border-b border-[#2d2d2d]">
+                    <input
+                      type="text"
+                      placeholder="e.g. server.py or helper.ts"
+                      value={newFileName}
+                      onChange={(e) => setNewFileName(e.target.value)}
+                      autoFocus
+                      className="w-full bg-[#121212] border border-[#adc6ff] rounded px-2 py-1 font-code text-xs text-[#e5e2e1] focus:outline-none placeholder:text-[#8c909f]"
+                    />
+                  </form>
+                )}
 
-                return (
+                <div className="py-2">
+                  <div className="px-3 py-1 flex items-center gap-2 text-xs font-semibold text-[#e5e2e1]">
+                    <span className="material-symbols-outlined text-[16px] text-[#8c909f]">
+                      expand_more
+                    </span>
+                    <span className="font-code text-xs">{roomId}/</span>
+                  </div>
+
+                  {files.map((file) => {
+                    const isSelected = activeFile?.id === file.id;
+                    const iconColor =
+                      file.name.endsWith(".py")
+                        ? "text-[#519aba]"
+                        : file.name.endsWith(".json")
+                        ? "text-[#cbcb41]"
+                        : file.name.endsWith(".rs") || file.name.endsWith(".toml")
+                        ? "text-[#ffb786]"
+                        : file.name.endsWith(".ts") || file.name.endsWith(".js")
+                        ? "text-[#4d8eff]"
+                        : "text-[#adc6ff]";
+
+                    return (
+                      <div
+                        key={file.id}
+                        onClick={() => handleOpenFile(file.id)}
+                        className={`pl-8 pr-3 py-1.5 flex items-center gap-2 cursor-pointer transition-colors text-xs font-code group ${
+                          isSelected
+                            ? "bg-[#201f1f] text-[#adc6ff] font-medium border-l-2 border-[#adc6ff]"
+                            : "text-[#c2c6d6] hover:bg-[#201f1f] hover:text-[#e5e2e1]"
+                        }`}
+                      >
+                        <span className={`material-symbols-outlined text-[16px] ${iconColor}`}>
+                          description
+                        </span>
+                        <span className="flex-1 truncate">{file.name}</span>
+                        {files.length > 1 && (
+                          <button
+                            onClick={(e) => handleDeleteFile(file.id, e)}
+                            className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 text-[#8c909f] transition-opacity"
+                            title="Delete file"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">delete</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Room Members */}
+                <div className="mt-4 border-t border-[#2d2d2d] pt-2">
+                  <div className="px-3 py-1.5 flex items-center justify-between">
+                    <span className="font-code text-[11px] font-semibold text-[#8c909f] tracking-wider uppercase">
+                      COLLABORATORS ({members.length})
+                    </span>
+                  </div>
+
+                  {members.map((m) => (
+                    <div
+                      key={m.id}
+                      className="px-3 py-1.5 flex items-center gap-3 hover:bg-[#201f1f] transition-colors"
+                    >
+                      <div className="relative">
+                        <div
+                          className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
+                          style={{
+                            backgroundColor: m.avatarColor,
+                            color: m.initials === "YOU" ? "#ffffff" : "#00285d",
+                          }}
+                        >
+                          {m.initials}
+                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full border border-[#181818]" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-[#e5e2e1] font-medium leading-none">
+                          {m.name} {m.isHost && "(Host)"}
+                        </span>
+                        {m.activeLine && (
+                          <span className="text-[10px] text-[#8c909f] font-code">
+                            line {m.activeLine}
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className={`material-symbols-outlined text-[14px] ml-auto ${
+                          m.currentAction === "editing" ? "text-[#adc6ff]" : "text-[#8c909f]"
+                        }`}
+                      >
+                        {m.currentAction === "editing" ? "edit" : "visibility"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Search View */}
+          {activeActivity === "search" && (
+            <div className="flex flex-col h-full">
+              <div className="p-3 border-b border-[#2d2d2d] bg-[#1c1b1b]">
+                <span className="font-code text-[11px] font-semibold text-[#c2c6d6] tracking-wider uppercase">
+                  SEARCH IN ROOM
+                </span>
+              </div>
+              <div className="p-3 border-b border-[#2d2d2d]">
+                <input
+                  type="text"
+                  placeholder="Search file names..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  className="w-full bg-[#121212] border border-[#383b47] rounded px-2.5 py-1.5 font-code text-xs text-[#e5e2e1] focus:border-[#adc6ff] focus:outline-none placeholder:text-[#8c909f]"
+                />
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {filteredFiles.map((file) => (
                   <div
                     key={file.id}
                     onClick={() => handleOpenFile(file.id)}
-                    className={`pl-8 pr-3 py-1.5 flex items-center gap-2 cursor-pointer transition-colors text-xs font-code group ${
-                      isSelected
-                        ? "bg-[#201f1f] text-[#adc6ff] font-medium border-l-2 border-[#adc6ff]"
-                        : "text-[#c2c6d6] hover:bg-[#2a2a2a] hover:text-[#e5e2e1]"
-                    }`}
+                    className="p-2 rounded bg-[#201f1f] border border-[#2d2d2d] hover:border-[#adc6ff] cursor-pointer text-xs font-code"
                   >
-                    <span className={`material-symbols-outlined text-[16px] ${iconColor}`}>
-                      description
-                    </span>
-                    <span className="flex-1 truncate">{file.name}</span>
-                    {files.length > 1 && (
-                      <button
-                        onClick={(e) => handleDeleteFile(file.id, e)}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 transition-opacity"
-                        title="Delete file"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">delete</span>
-                      </button>
-                    )}
+                    <div className="text-[#adc6ff] font-semibold">{file.name}</div>
+                    <div className="text-[10px] text-[#8c909f] truncate">{file.content.slice(0, 45)}...</div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
+          )}
 
-            {/* Room Members */}
-            <div className="mt-4 border-t border-[#424754]/50 pt-2">
-              <div className="px-3 py-1.5 flex items-center justify-between">
-                <span className="font-code text-[11px] font-semibold text-[#c2c6d6] tracking-wider">
-                  COLLABORATORS ({members.length})
+          {/* Git Source Control View */}
+          {activeActivity === "git" && (
+            <div className="flex flex-col h-full">
+              <div className="p-3 border-b border-[#2d2d2d] bg-[#1c1b1b]">
+                <span className="font-code text-[11px] font-semibold text-[#c2c6d6] tracking-wider uppercase">
+                  SOURCE CONTROL
                 </span>
               </div>
-
-              {members.map((m) => (
-                <div
-                  key={m.id}
-                  className="px-3 py-1.5 flex items-center gap-3 hover:bg-[#201f1f] transition-colors"
+              <form onSubmit={handleGitCommit} className="p-3 border-b border-[#2d2d2d] space-y-2">
+                <textarea
+                  rows={2}
+                  placeholder="Commit message..."
+                  value={commitMessage}
+                  onChange={(e) => setCommitMessage(e.target.value)}
+                  className="w-full bg-[#121212] border border-[#383b47] rounded p-2 font-code text-xs text-[#e5e2e1] focus:border-[#adc6ff] focus:outline-none resize-none placeholder:text-[#8c909f]"
+                />
+                <button
+                  type="submit"
+                  disabled={!commitMessage.trim()}
+                  className="w-full py-1.5 bg-[#adc6ff] disabled:opacity-50 text-[#002e6a] font-code text-xs font-bold rounded hover:bg-[#d8e2ff] transition-colors"
                 >
-                  <div className="relative">
-                    <div
-                      className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold border"
-                      style={{
-                        backgroundColor: m.avatarColor,
-                        borderColor: m.avatarColor,
-                        color: m.initials === "YOU" ? "#ffffff" : "#00285d",
-                      }}
-                    >
-                      {m.initials}
-                    </div>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-[#181818]" />
+                  Commit to Main
+                </button>
+              </form>
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                <span className="font-code text-[10px] text-[#8c909f] uppercase tracking-wider">
+                  COMMIT HISTORY
+                </span>
+                {gitHistory.map((item, idx) => (
+                  <div key={idx} className="font-code text-[11px] text-[#c2c6d6] p-2 bg-[#201f1f] rounded border border-[#2d2d2d]">
+                    {item}
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-[#e5e2e1] font-medium leading-none">
-                      {m.name} {m.isHost && "(Host)"}
-                    </span>
-                    {m.activeLine && (
-                      <span className="text-[10px] text-[#8c909f] font-code">
-                        line {m.activeLine}
-                      </span>
-                    )}
-                  </div>
-                  <span
-                    className={`material-symbols-outlined text-[14px] ml-auto ${
-                      m.currentAction === "editing" ? "text-[#adc6ff]" : "text-[#8c909f]"
-                    }`}
-                  >
-                    {m.currentAction === "editing" ? "edit" : "visibility"}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Center Monaco Editor Area */}
@@ -604,7 +720,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
           {/* Notification Toast */}
           {editorNotice && (
             <div className="bg-[#4d8eff]/20 border-b border-[#4d8eff] px-4 py-1.5 text-xs text-[#adc6ff] flex items-center justify-between">
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2 font-code">
                 <span className="material-symbols-outlined text-[15px]">check_circle</span>
                 {editorNotice}
               </span>
@@ -612,19 +728,19 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
           )}
 
           {/* Editor Tabs */}
-          <div className="flex bg-[#121212] border-b border-[#424754]/50 shrink-0 overflow-x-auto">
+          <div className="flex bg-[#121212] border-b border-[#2d2d2d] shrink-0 overflow-x-auto">
             {openTabIds.map((tabId) => {
               const file = files.find((f) => f.id === tabId);
               if (!file) return null;
-              const isActive = activeFileId === tabId;
+              const isActive = activeFile?.id === tabId;
               return (
                 <div
                   key={tabId}
                   onClick={() => setActiveFileId(tabId)}
-                  className={`px-4 py-2 border-r border-[#424754]/40 flex items-center gap-2 cursor-pointer transition-colors min-w-[130px] font-code text-xs ${
+                  className={`px-4 py-2 border-r border-[#2d2d2d] flex items-center gap-2 cursor-pointer transition-colors min-w-[130px] font-code text-xs ${
                     isActive
                       ? "bg-[#0a0a0a] border-t-2 border-t-[#adc6ff] text-[#adc6ff] font-medium"
-                      : "text-[#c2c6d6] hover:bg-[#201f1f]"
+                      : "text-[#c2c6d6] hover:bg-[#1c1b1b]"
                   }`}
                 >
                   <span className="material-symbols-outlined text-[15px] text-[#519aba]">
@@ -649,11 +765,11 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
                     saveStatus === "saved" ? "bg-green-400" : "bg-amber-400 animate-ping"
                   }`}
                 />
-                {saveStatus === "saved" ? "Auto-saved" : "Saving..."}
+                {saveStatus === "saved" ? "Saved" : "Saving..."}
               </span>
               <button
                 onClick={handleRunActiveFile}
-                className="bg-[#001a42] border border-[#00285d] text-[#adc6ff] px-2.5 py-1 rounded font-code text-xs hover:bg-[#00285d] transition-colors flex items-center gap-1"
+                className="bg-[#001a42] border border-[#00285d] text-[#adc6ff] px-2.5 py-1 rounded font-code text-xs font-semibold hover:bg-[#00285d] transition-colors flex items-center gap-1"
               >
                 <span className="material-symbols-outlined text-[15px]">play_arrow</span>
                 <span>Run</span>
@@ -667,41 +783,44 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
             <span className="material-symbols-outlined text-[14px]">chevron_right</span>
             <span>{roomId}</span>
             <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-[#e5e2e1]">{activeFile.name}</span>
+            <span className="text-[#e5e2e1]">{activeFile?.name || "file"}</span>
           </div>
 
           {/* Monaco Editor Container */}
           <div className="flex-1 min-h-0 relative">
-            <MonacoEditor
-              height="100%"
-              language={activeFile.language}
-              value={activeFile.content}
-              theme="vs-dark"
-              onChange={handleEditorChange}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: "'JetBrains Mono', monospace",
-                lineNumbers: "on",
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                tabSize: 2,
-                cursorBlinking: "smooth",
-                smoothScrolling: true,
-                padding: { top: 12 },
-              }}
-            />
+            {activeFile && (
+              <MonacoEditor
+                height="100%"
+                language={activeFile.language}
+                value={activeFile.content}
+                theme="vs-dark"
+                onChange={handleEditorChange}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize,
+                  tabSize,
+                  wordWrap: wordWrap ? "on" : "off",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  lineNumbers: "on",
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  cursorBlinking: "smooth",
+                  smoothScrolling: true,
+                  padding: { top: 12 },
+                }}
+              />
+            )}
           </div>
 
           {/* Bottom Terminal Panel */}
-          <div className="h-44 bg-[#0a0a0a] border-t border-[#424754]/50 flex flex-col shrink-0">
+          <div className="h-44 bg-[#0a0a0a] border-t border-[#2d2d2d] flex flex-col shrink-0">
             <div className="bg-[#121212] px-4 flex items-center border-b border-[#2d2d2d] shrink-0">
               <button
                 onClick={() => setActiveTabPanel("terminal")}
                 className={`py-1.5 px-3 font-code text-xs transition-colors ${
                   activeTabPanel === "terminal"
                     ? "border-b-2 border-[#adc6ff] text-[#adc6ff] font-semibold"
-                    : "text-[#c2c6d6] hover:text-[#e5e2e1]"
+                    : "text-[#8c909f] hover:text-[#e5e2e1]"
                 }`}
               >
                 TERMINAL
@@ -711,7 +830,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
                 className={`py-1.5 px-3 font-code text-xs transition-colors ${
                   activeTabPanel === "output"
                     ? "border-b-2 border-[#adc6ff] text-[#adc6ff] font-semibold"
-                    : "text-[#c2c6d6] hover:text-[#e5e2e1]"
+                    : "text-[#8c909f] hover:text-[#e5e2e1]"
                 }`}
               >
                 OUTPUT
@@ -721,12 +840,25 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
                 className={`py-1.5 px-3 font-code text-xs transition-colors ${
                   activeTabPanel === "problems"
                     ? "border-b-2 border-[#adc6ff] text-[#adc6ff] font-semibold"
-                    : "text-[#c2c6d6] hover:text-[#e5e2e1]"
+                    : "text-[#8c909f] hover:text-[#e5e2e1]"
                 }`}
               >
                 PROBLEMS (0)
               </button>
               <div className="ml-auto flex gap-2">
+                <button
+                  onClick={() =>
+                    setTerminalHistory((prev) => [
+                      ...prev,
+                      `user@codemesh:~/${roomId}$ # New Shell instance spawned`,
+                      `user@codemesh:~/${roomId}$ `,
+                    ])
+                  }
+                  className="material-symbols-outlined text-[16px] text-[#8c909f] hover:text-[#adc6ff]"
+                  title="New Terminal"
+                >
+                  add
+                </button>
                 <button
                   onClick={() => setTerminalHistory([`user@codemesh:~/${roomId}$ `])}
                   className="material-symbols-outlined text-[16px] text-[#8c909f] hover:text-[#adc6ff]"
@@ -744,9 +876,9 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
                     <div key={idx} className="whitespace-pre-wrap">
                       {line.startsWith("user@codemesh") ? (
                         <span className="text-[#8c909f]">{line}</span>
-                      ) : line.includes("[CodeMesh") || line.includes("✓") || line.includes("[Status") ? (
+                      ) : line.includes("[CodeMesh") || line.includes("✓") ? (
                         <span className="text-[#adc6ff]">{line}</span>
-                      ) : line.includes("[Error]") || line.includes("[SyntaxError]") ? (
+                      ) : line.includes("[Error]") || line.includes("[Runtime Exception]") ? (
                         <span className="text-red-400">{line}</span>
                       ) : (
                         <span>{line}</span>
@@ -769,7 +901,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
 
               {activeTabPanel === "output" && (
                 <div className="text-[#8c909f] space-y-1">
-                  <div>[CodeMesh Realtime] Broadcast connected to channel: room_{roomId}</div>
+                  <div>[CodeMesh Realtime] Broadcast channel active: room_{roomId}</div>
                   <div>[Memory Graph] pgvector indexing active across {files.length} project files.</div>
                   <div>[Gemini Engine] Model &apos;gemini-2.0-flash&apos; ready for contextual AST queries.</div>
                 </div>
@@ -784,8 +916,8 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
 
         {/* AI Assistant Panel */}
         {showAIPanel && (
-          <div className="w-80 bg-[#181818] border-l border-[#424754]/50 flex flex-col shrink-0">
-            <div className="p-3 border-b border-[#424754]/50 flex justify-between items-center bg-[#121212]">
+          <div className="w-80 bg-[#181818] border-l border-[#2d2d2d] flex flex-col shrink-0">
+            <div className="p-3 border-b border-[#2d2d2d] flex justify-between items-center bg-[#121212]">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#d0bcff] text-[18px]">
                   auto_awesome
@@ -802,23 +934,23 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
               </button>
             </div>
 
-            {/* AI Quick Prompts */}
-            <div className="p-2.5 border-b border-[#424754]/40 bg-[#1c1b1b] flex flex-wrap gap-1.5">
+            {/* Quick Prompts */}
+            <div className="p-2.5 border-b border-[#2d2d2d] bg-[#1c1b1b] flex flex-wrap gap-1.5">
               <button
-                onClick={() => handleSendPromptText(`Explain the architecture and functions in ${activeFile.name}`)}
-                className="text-[10px] font-code bg-[#2a2a2a] hover:bg-[#353534] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#424754]"
+                onClick={() => handleSendPromptText(`Explain the architecture and functions in ${activeFile?.name}`)}
+                className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
               >
                 Explain Code
               </button>
               <button
-                onClick={() => handleSendPromptText(`Optimize performance and concurrency in ${activeFile.name}`)}
-                className="text-[10px] font-code bg-[#2a2a2a] hover:bg-[#353534] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#424754]"
+                onClick={() => handleSendPromptText(`Optimize performance and concurrency in ${activeFile?.name}`)}
+                className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
               >
                 Optimize
               </button>
               <button
-                onClick={() => handleSendPromptText(`Write comprehensive unit tests for ${activeFile.name}`)}
-                className="text-[10px] font-code bg-[#2a2a2a] hover:bg-[#353534] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#424754]"
+                onClick={() => handleSendPromptText(`Write comprehensive unit tests for ${activeFile?.name}`)}
+                className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
               >
                 Generate Tests
               </button>
@@ -826,8 +958,8 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
 
             {/* Chat History */}
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-              <div className="bg-[#201f1f] text-[#c2c6d6] p-2.5 rounded border border-[#424754]/50 text-xs">
-                Context aware of <span className="font-code text-[#adc6ff]">{activeFile.name}</span>. RAG indexed {files.length} files in room.
+              <div className="bg-[#201f1f] text-[#c2c6d6] p-2.5 rounded border border-[#2d2d2d] text-xs font-code">
+                Context aware of <span className="text-[#adc6ff] font-bold">{activeFile?.name}</span>. RAG indexed {files.length} files in room.
               </div>
 
               {aiChat.map((msg, idx) => (
@@ -840,13 +972,13 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
                   <div
                     className={`p-3 rounded-lg text-xs leading-relaxed max-w-[95%] ${
                       msg.role === "user"
-                        ? "bg-[#2a2a2a] text-[#e5e2e1] border border-[#424754]"
+                        ? "bg-[#201f1f] text-[#e5e2e1] border border-[#2d2d2d]"
                         : "bg-[#121212] text-[#e5e2e1] border-l-2 border-[#d0bcff] shadow-[0_0_10px_rgba(208,188,255,0.05)]"
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{msg.text}</p>
                     {msg.codeSnippet && (
-                      <div className="bg-[#0a0a0a] rounded border border-[#424754] p-2 mt-2 font-code text-[11px] overflow-x-auto whitespace-pre">
+                      <div className="bg-[#0a0a0a] rounded border border-[#2d2d2d] p-2 mt-2 font-code text-[11px] overflow-x-auto whitespace-pre">
                         <code>{msg.codeSnippet}</code>
                       </div>
                     )}
@@ -858,7 +990,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
                             setCopiedIndex(idx);
                             setTimeout(() => setCopiedIndex(null), 2000);
                           }}
-                          className="flex items-center gap-1 text-[11px] border border-[#424754] px-2 py-1 rounded hover:bg-[#2a2a2a] transition-colors"
+                          className="flex items-center gap-1 text-[11px] border border-[#2d2d2d] px-2 py-1 rounded hover:bg-[#201f1f] transition-colors"
                         >
                           <span className="material-symbols-outlined text-[13px]">
                             {copiedIndex === idx ? "check" : "content_copy"}
@@ -881,9 +1013,9 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
               ))}
 
               {isAILoading && (
-                <div className="bg-[#121212] text-[#adc6ff] p-3 rounded-lg border-l-2 border-[#d0bcff] text-xs flex items-center gap-2">
+                <div className="bg-[#121212] text-[#adc6ff] p-3 rounded-lg border-l-2 border-[#d0bcff] text-xs flex items-center gap-2 font-code">
                   <span className="w-2 h-2 rounded-full bg-[#d0bcff] animate-ping" />
-                  Generating Gemini RAG code response...
+                  Generating Gemini RAG response...
                 </div>
               )}
             </div>
@@ -894,11 +1026,11 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
                 e.preventDefault();
                 handleSendPromptText(aiPrompt);
               }}
-              className="p-3 border-t border-[#424754]/50 bg-[#121212]"
+              className="p-3 border-t border-[#2d2d2d] bg-[#121212]"
             >
-              <div className="bg-[#131313] border border-[#424754] rounded focus-within:border-[#d0bcff] flex items-end p-2 transition-colors">
+              <div className="bg-[#131313] border border-[#2d2d2d] rounded focus-within:border-[#d0bcff] flex items-end p-2 transition-colors">
                 <textarea
-                  className="w-full bg-transparent border-none text-[#e5e2e1] text-xs placeholder-[#8c909f] resize-none focus:outline-none p-1"
+                  className="w-full bg-transparent border-none text-[#e5e2e1] text-xs placeholder-[#8c909f] resize-none focus:outline-none p-1 font-body"
                   placeholder="Ask about your code or architecture..."
                   rows={2}
                   value={aiPrompt}
@@ -913,7 +1045,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
                 <button
                   type="submit"
                   disabled={!aiPrompt.trim() || isAILoading}
-                  className="p-1 rounded text-[#d0bcff] hover:bg-[#2a2a2a] disabled:opacity-40 transition-colors"
+                  className="p-1 rounded text-[#d0bcff] hover:bg-[#201f1f] disabled:opacity-40 transition-colors"
                 >
                   <span className="material-symbols-outlined text-[18px]">send</span>
                 </button>
@@ -922,6 +1054,18 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
           </div>
         )}
       </div>
+
+      {showSettingsModal && (
+        <EditorSettingsModal
+          fontSize={fontSize}
+          setFontSize={setFontSize}
+          tabSize={tabSize}
+          setTabSize={setTabSize}
+          wordWrap={wordWrap}
+          setWordWrap={setWordWrap}
+          onClose={() => setShowSettingsModal(false)}
+        />
+      )}
     </div>
   );
 }
