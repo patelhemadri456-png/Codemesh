@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import CreateRoomModal from "@/components/CreateRoomModal";
@@ -12,51 +12,68 @@ interface WorkspaceCardData {
   description: string;
   tags: { name: string; variant: "primary" | "neutral" }[];
   activeAgo: string;
-  members: string[];
+  membersCount: number;
 }
 
-const initialWorkspaces: WorkspaceCardData[] = [
+const defaultWorkspaces: WorkspaceCardData[] = [
   {
     id: "compsci-101-final",
     title: "CompSci 101 Final",
-    description:
-      "Collaborative environment for final project algorithms and data structures.",
+    description: "Collaborative environment for final project algorithms and data structures.",
     tags: [
       { name: "Python", variant: "primary" },
       { name: "Jupyter", variant: "neutral" },
     ],
     activeAgo: "2h ago",
-    members: ["SJ", "AL"],
+    membersCount: 2,
   },
   {
     id: "hackathon-app",
     title: "Hackathon App",
-    description:
-      "React Native mobile application prototype for the weekend hackathon.",
+    description: "React Native mobile application prototype for the weekend hackathon.",
     tags: [
       { name: "TypeScript", variant: "primary" },
       { name: "React", variant: "neutral" },
     ],
     activeAgo: "1d ago",
-    members: ["MK"],
+    membersCount: 1,
   },
   {
-    id: "distributed-worker",
+    id: "distributed-stream-engine",
     title: "Distributed Stream Engine",
-    description:
-      "High-throughput event consumer with pgvector semantic similarity search pipeline.",
+    description: "High-throughput event consumer with pgvector semantic similarity search pipeline.",
     tags: [
       { name: "Rust", variant: "primary" },
       { name: "Tokio", variant: "neutral" },
     ],
     activeAgo: "Just now",
-    members: ["YOU", "AL", "SJ"],
+    membersCount: 3,
   },
 ];
 
 export default function WorkspacesPage() {
+  const [workspaces, setWorkspaces] = useState<WorkspaceCardData[]>(defaultWorkspaces);
+  const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/rooms")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.rooms && Array.isArray(data.rooms)) {
+          setWorkspaces(data.rooms);
+        }
+      })
+      .catch((err) => console.warn("Using local rooms fallback", err));
+  }, []);
+
+  const filteredWorkspaces = workspaces.filter(
+    (w) =>
+      w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      w.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      w.tags.some((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   return (
     <div className="bg-[#131313] text-[#e5e2e1] min-h-screen flex flex-col">
@@ -64,19 +81,19 @@ export default function WorkspacesPage() {
 
       <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#0a0a0a]">
         <div className="max-w-6xl mx-auto mt-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
               <h1 className="font-headline text-2xl md:text-3xl font-bold text-[#e5e2e1] mb-1">
                 Workspaces
               </h1>
               <p className="text-sm text-[#c2c6d6]">
-                Select a project or create a new room to start collaborating in real time.
+                Select a project or create a new room to start collaborating with your team.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
                 onClick={() => setShowJoinModal(true)}
-                className="px-4 py-2 border border-[#424754] text-[#e5e2e1] rounded text-sm font-medium hover:bg-[#201f1f] transition-colors flex items-center gap-2"
+                className="px-4 py-2 border border-[#424754] text-[#e5e2e1] rounded text-sm font-medium hover:bg-[#201f1f] transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none"
               >
                 <span className="material-symbols-outlined text-[18px] text-[#adc6ff]">
                   group_add
@@ -85,7 +102,7 @@ export default function WorkspacesPage() {
               </button>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-[#adc6ff] text-[#002e6a] rounded text-sm font-semibold flex items-center gap-2 hover:bg-[#d8e2ff] transition-all shadow-[0_0_15px_rgba(173,198,255,0.25)]"
+                className="px-4 py-2 bg-[#adc6ff] text-[#002e6a] rounded text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#d8e2ff] transition-all shadow-[0_0_15px_rgba(173,198,255,0.25)] flex-1 sm:flex-none"
               >
                 <span className="material-symbols-outlined text-[18px]">add</span>
                 New Workspace
@@ -93,9 +110,25 @@ export default function WorkspacesPage() {
             </div>
           </div>
 
+          {/* Search bar */}
+          <div className="mb-6 max-w-md">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-[#8c909f]">
+                search
+              </span>
+              <input
+                type="text"
+                placeholder="Search workspaces by name, stack, or tag..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#1c1b1b] border border-[#424754] rounded-md pl-10 pr-4 py-2 font-code text-xs text-[#e5e2e1] focus:border-[#adc6ff] focus:outline-none transition-colors placeholder:text-[#8c909f]"
+              />
+            </div>
+          </div>
+
           {/* Bento Grid for Workspaces */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {initialWorkspaces.map((ws) => (
+            {filteredWorkspaces.map((ws) => (
               <Link
                 key={ws.id}
                 href={`/workspace/${ws.id}`}
@@ -111,7 +144,7 @@ export default function WorkspacesPage() {
                     </span>
                   </div>
                   <div className="flex -space-x-1.5">
-                    {ws.members.map((m, i) => (
+                    {Array.from({ length: ws.membersCount || 2 }).map((_, i) => (
                       <div
                         key={i}
                         className={`w-6 h-6 rounded-full border border-[#201f1f] flex items-center justify-center text-[9px] font-bold ${
@@ -122,7 +155,7 @@ export default function WorkspacesPage() {
                             : "bg-[#d0bcff] text-[#3c0091]"
                         }`}
                       >
-                        {m}
+                        {i === 0 ? "YOU" : i === 1 ? "AL" : "SJ"}
                       </div>
                     ))}
                   </div>
@@ -132,8 +165,8 @@ export default function WorkspacesPage() {
                   <p className="text-xs text-[#c2c6d6] leading-relaxed mb-4">
                     {ws.description}
                   </p>
-                  <div className="flex gap-2">
-                    {ws.tags.map((t, i) => (
+                  <div className="flex flex-wrap gap-2">
+                    {ws.tags?.map((t, i) => (
                       <span
                         key={i}
                         className={`px-2 py-0.5 rounded font-code text-[11px] border ${
@@ -150,7 +183,7 @@ export default function WorkspacesPage() {
 
                 <div className="px-4 py-2.5 border-t border-[#2d2d2d] bg-[#121212] flex justify-between items-center group-hover:bg-[#181818] transition-colors">
                   <span className="font-code text-[11px] text-[#8c909f]">
-                    Last active: {ws.activeAgo}
+                    Last active: {ws.activeAgo || "Just now"}
                   </span>
                   <span className="material-symbols-outlined text-[16px] text-[#adc6ff] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">
                     arrow_forward
@@ -163,7 +196,12 @@ export default function WorkspacesPage() {
       </main>
 
       {showCreateModal && (
-        <CreateRoomModal onClose={() => setShowCreateModal(false)} />
+        <CreateRoomModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={(newRoom) =>
+            setWorkspaces((prev) => [newRoom as WorkspaceCardData, ...prev])
+          }
+        />
       )}
       {showJoinModal && (
         <JoinRoomModal onClose={() => setShowJoinModal(false)} />
