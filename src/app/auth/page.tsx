@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { setUserSession } from "@/lib/authSession";
+import { setUserSession, AppTheme } from "@/lib/authSession";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
+import ThemeSelectionModal from "@/components/ThemeSelectionModal";
 import confetti from "canvas-confetti";
 
 export default function AuthPage() {
@@ -15,6 +16,7 @@ export default function AuthPage() {
   const [handle, setHandle] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [showThemePicker, setShowThemePicker] = useState(false);
 
   // Email & Password Auth
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,9 +55,8 @@ export default function AuthPage() {
     });
 
     confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
-    setTimeout(() => {
-      router.push("/workspaces");
-    }, 400);
+    setIsLoading(false);
+    setShowThemePicker(true);
   };
 
   // Google OAuth Auth
@@ -88,9 +89,8 @@ export default function AuthPage() {
     });
 
     confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-    setTimeout(() => {
-      router.push("/workspaces");
-    }, 400);
+    setIsLoading(false);
+    setShowThemePicker(true);
   };
 
   // GitHub OAuth Auth
@@ -122,9 +122,13 @@ export default function AuthPage() {
     });
 
     confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-    setTimeout(() => {
-      router.push("/workspaces");
-    }, 400);
+    setIsLoading(false);
+    setShowThemePicker(true);
+  };
+
+  const handleThemeComplete = (selectedTheme: AppTheme) => {
+    setUserSession({ theme: selectedTheme });
+    router.push("/workspaces");
   };
 
   return (
@@ -340,6 +344,9 @@ export default function AuthPage() {
           </span>
         </footer>
       </main>
+
+      {/* Post-Login Theme Selection Modal */}
+      {showThemePicker && <ThemeSelectionModal onComplete={handleThemeComplete} />}
     </div>
   );
 }

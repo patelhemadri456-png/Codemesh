@@ -425,7 +425,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#131313] text-[#e5e2e1]">
       {/* Top Navigation */}
-      <Navbar variant="workspace" roomId={roomId} />
+      <Navbar variant="ide" roomId={roomId} />
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Activity Bar */}
@@ -1058,11 +1058,13 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
       {showSettingsModal && (
         <EditorSettingsModal
           fontSize={fontSize}
-          setFontSize={setFontSize}
           tabSize={tabSize}
-          setTabSize={setTabSize}
-          wordWrap={wordWrap}
-          setWordWrap={setWordWrap}
+          wordWrap={wordWrap ? "on" : "off"}
+          onSave={({ fontSize: newFont, tabSize: newTab, wordWrap: newWrap }) => {
+            setFontSize(newFont);
+            setTabSize(newTab);
+            setWordWrap(newWrap === "on");
+          }}
           onClose={() => setShowSettingsModal(false)}
         />
       )}

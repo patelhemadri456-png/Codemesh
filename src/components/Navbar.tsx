@@ -1,229 +1,235 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import CreateRoomModal from "./CreateRoomModal";
-import JoinRoomModal from "./JoinRoomModal";
-import { getUserSession, logoutUser, UserSession } from "@/lib/authSession";
-import confetti from "canvas-confetti";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  getUserSession,
+  logoutUser,
+  getThemePreference,
+  setThemePreference,
+  UserSession,
+  AppTheme,
+} from "@/lib/authSession";
 
 interface NavbarProps {
-  variant?: "landing" | "dashboard" | "workspace";
+  variant?: "landing" | "dashboard" | "ide";
   roomId?: string;
+  activeFile?: string;
 }
 
-export default function Navbar({ variant = "landing", roomId }: NavbarProps) {
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [user, setUser] = useState<UserSession | null>(null);
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
+export default function Navbar({
+  variant = "landing",
+  roomId,
+  activeFile,
+}: NavbarProps) {
+  const router = useRouter();
+  const [user, setUser] = useState<UserSession>(getUserSession());
+  const [theme, setTheme] = useState<AppTheme>("dark");
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     setUser(getUserSession());
-    const handleAuthChange = () => setUser(getUserSession());
+    const initialTheme = getThemePreference();
+    setTheme(initialTheme);
+    if (initialTheme === "light") {
+      document.documentElement.classList.add("light");
+      document.documentElement.classList.remove("dark");
+    } else {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+    }
+
+    const handleAuthChange = () => {
+      setUser(getUserSession());
+    };
+
+    const handleThemeChange = (e: Event) => {
+      const custom = e as CustomEvent<{ theme: AppTheme }>;
+      if (custom.detail?.theme) {
+        setTheme(custom.detail.theme);
+      }
+    };
+
     window.addEventListener("codemesh:auth_change", handleAuthChange);
-    return () => window.removeEventListener("codemesh:auth_change", handleAuthChange);
+    window.addEventListener("codemesh:theme_change", handleThemeChange);
+    return () => {
+      window.removeEventListener("codemesh:auth_change", handleAuthChange);
+      window.removeEventListener("codemesh:theme_change", handleThemeChange);
+    };
   }, []);
 
-  const handleShare = () => {
-    if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(window.location.href);
-      setShareCopied(true);
-      confetti({ particleCount: 40, spread: 50, origin: { y: 0.1 } });
-      setTimeout(() => setShareCopied(false), 2500);
-    }
+  const toggleTheme = () => {
+    const nextTheme: AppTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    setThemePreference(nextTheme);
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    setShowUserMenu(false);
+    router.push("/");
   };
 
   return (
-    <>
-      <nav className="bg-[#1c1b1b] border-b border-[#424754]/50 flex justify-between items-center w-full px-4 md:px-6 h-12 sticky top-0 z-50">
-        <div className="flex items-center gap-6">
-          <Link
-            href="/"
-            className="font-headline text-lg font-bold text-[#adc6ff] flex items-center gap-2 tracking-tight hover:opacity-90 transition-opacity"
+    <nav className="h-14 border-b border-white/10 px-4 md:px-6 flex items-center justify-between bg-[#111113]/80 backdrop-blur-md sticky top-0 z-40">
+      {/* Brand & Logo */}
+      <div className="flex items-center gap-6">
+        <Link href="/" className="flex items-center gap-2 group">
+          <span
+            className="material-symbols-outlined text-[#adc6ff] text-[24px] group-hover:rotate-12 transition-transform"
+            style={{ fontVariationSettings: "'FILL' 1" }}
           >
-            <span
-              className="material-symbols-outlined text-[22px]"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              widgets
-            </span>
+            widgets
+          </span>
+          <span className="font-headline font-bold text-lg tracking-tight text-[#ededed]">
             CodeMesh
-          </Link>
+          </span>
+          <span className="text-[10px] font-code bg-[#1e1e23] border border-white/10 text-[#adc6ff] px-1.5 py-0.5 rounded">
+            v2.4
+          </span>
+        </Link>
 
-          {variant === "landing" && (
-            <div className="hidden md:flex gap-1 text-sm font-medium">
-              <a
-                href="#features"
-                className="text-[#c2c6d6] hover:text-[#e5e2e1] hover:bg-[#353534]/50 transition-colors px-3 py-1 rounded"
-              >
-                Features
-              </a>
-              <a
-                href="#velocity"
-                className="text-[#c2c6d6] hover:text-[#e5e2e1] hover:bg-[#353534]/50 transition-colors px-3 py-1 rounded"
-              >
-                Architecture
-              </a>
-              <Link
-                href="/workspaces"
-                className="text-[#c2c6d6] hover:text-[#e5e2e1] hover:bg-[#353534]/50 transition-colors px-3 py-1 rounded"
-              >
-                Workspaces
-              </Link>
-            </div>
-          )}
+        {variant === "landing" && (
+          <div className="hidden md:flex items-center gap-6 text-xs font-medium text-[#b0b4c3]">
+            <a href="#velocity" className="hover:text-[#ededed] transition-colors">
+              Architecture
+            </a>
+            <Link href="/workspaces" className="hover:text-[#ededed] transition-colors">
+              Workspaces
+            </Link>
+            <Link href="/auth" className="hover:text-[#ededed] transition-colors">
+              Pricing
+            </Link>
+          </div>
+        )}
 
-          {variant === "dashboard" && (
-            <div className="hidden md:flex h-full items-center gap-4 text-sm">
-              <Link
-                href="/workspaces"
-                className="text-[#adc6ff] font-semibold border-b-2 border-[#adc6ff] py-3 flex items-center"
-              >
-                Workspaces
-              </Link>
-              <Link
-                href="/workspace/demo"
-                className="text-[#c2c6d6] py-3 hover:text-white transition-colors"
-              >
-                Sandbox IDE
-              </Link>
-            </div>
-          )}
+        {variant === "dashboard" && (
+          <div className="hidden md:flex items-center gap-2 text-xs font-code text-[#727685]">
+            <span>/</span>
+            <span className="text-[#ededed] font-semibold">workspaces</span>
+          </div>
+        )}
 
-          {variant === "workspace" && (
-            <div className="flex items-center gap-3">
-              <div className="h-4 w-px bg-[#424754]"></div>
-              <span className="font-code text-xs text-[#adc6ff] flex items-center gap-1.5 bg-[#201f1f] px-2.5 py-0.5 rounded border border-[#424754]">
-                <span className="material-symbols-outlined text-[14px] text-[#adc6ff]">
-                  group_work
-                </span>
-                {roomId || "workspace"}
-              </span>
-            </div>
-          )}
-        </div>
+        {variant === "ide" && roomId && (
+          <div className="hidden sm:flex items-center gap-2 text-xs font-code text-[#727685]">
+            <span>/</span>
+            <Link
+              href="/workspaces"
+              className="hover:text-[#ededed] transition-colors"
+            >
+              rooms
+            </Link>
+            <span>/</span>
+            <span className="text-[#adc6ff] font-semibold">{roomId}</span>
+            {activeFile && (
+              <>
+                <span>/</span>
+                <span className="text-[#ededed]">{activeFile}</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
-        <div className="flex items-center gap-3">
-          {variant === "landing" ? (
-            <>
-              {user?.isLoggedIn ? (
-                <Link
-                  href="/workspaces"
-                  className="flex items-center gap-2 text-xs font-code text-[#adc6ff] hover:text-white px-2 py-1"
-                >
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
-                    style={{ backgroundColor: user.avatarColor, color: "#00285d" }}
-                  >
-                    {user.initials}
-                  </div>
-                  <span>@{user.handle}</span>
-                </Link>
-              ) : (
-                <Link
-                  href="/auth"
-                  className="text-[#c2c6d6] text-sm hover:text-[#adc6ff] transition-colors px-3 py-1.5"
-                >
-                  Sign In
-                </Link>
-              )}
-              <Link
-                href="/workspaces"
-                className="bg-[#adc6ff] text-[#002e6a] text-sm font-semibold px-4 py-1.5 rounded hover:bg-[#d8e2ff] transition-all shadow-[0_0_15px_rgba(173,198,255,0.2)]"
-              >
-                Launch Workspace
-              </Link>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => setShowJoinModal(true)}
-                className="px-3 py-1 border border-[#424754] text-[#e5e2e1] bg-[#201f1f] rounded text-xs font-medium hover:bg-[#353534] transition-colors flex items-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-[15px] text-[#adc6ff]">
-                  group_add
-                </span>
-                Join Room
-              </button>
-              <button
-                onClick={handleShare}
-                className="px-3 py-1 bg-[#adc6ff] text-[#002e6a] rounded text-xs font-semibold hover:bg-[#d8e2ff] transition-colors flex items-center gap-1"
-              >
-                <span className="material-symbols-outlined text-[14px]">
-                  {shareCopied ? "check" : "share"}
-                </span>
-                {shareCopied ? "Copied!" : "Share"}
-              </button>
+      {/* Right Controls & Profile */}
+      <div className="flex items-center gap-3">
+        {/* Quick Theme Switcher Button */}
+        <button
+          onClick={toggleTheme}
+          title={`Switch to ${theme === "dark" ? "Light" : "Dark"} mode`}
+          className="p-1.5 rounded-lg border border-white/10 hover:border-white/20 text-[#b0b4c3] hover:text-[#ededed] transition-colors flex items-center justify-center bg-[#17171a]"
+        >
+          <span className="material-symbols-outlined text-[18px]">
+            {theme === "dark" ? "light_mode" : "dark_mode"}
+          </span>
+        </button>
 
-              {/* User Profile Avatar with Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-transform hover:scale-105 border border-[#424754]"
-                  style={{
-                    backgroundColor: user?.avatarColor || "#4d8eff",
-                    color: user?.isLoggedIn ? "#00285d" : "#ffffff",
-                  }}
-                  title={user?.isLoggedIn ? `@${user.handle}` : "Guest Account"}
-                >
-                  {user?.initials || "YOU"}
-                </button>
+        {variant === "landing" && (
+          <div className="flex items-center gap-3">
+            <Link
+              href="/auth"
+              className="text-xs font-code text-[#ededed] hover:text-white px-3 py-1.5 rounded-lg transition-colors hidden sm:block"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/workspaces"
+              className="bg-[#adc6ff] text-[#002e6a] text-xs font-code font-bold px-3.5 py-1.5 rounded-lg hover:bg-[#d8e2ff] transition-all shadow-[0_0_15px_rgba(173,198,255,0.3)]"
+            >
+              Get Started
+            </Link>
+          </div>
+        )}
 
-                {showUserDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-[#201f1f] border border-[#424754] rounded-lg shadow-2xl py-1 z-50 text-xs font-code">
-                    <div className="px-3 py-2 border-b border-[#424754]/50">
-                      <div className="font-semibold text-[#e5e2e1]">
-                        {user?.isLoggedIn ? `@${user.handle}` : "Guest Developer"}
-                      </div>
-                      <div className="text-[10px] text-[#8c909f] truncate">
-                        {user?.email || "Local Sandbox"}
-                      </div>
-                    </div>
-                    <Link
-                      href="/workspaces"
-                      onClick={() => setShowUserDropdown(false)}
-                      className="w-full text-left px-3 py-2 hover:bg-[#2a2a2a] text-[#c2c6d6] hover:text-[#adc6ff] flex items-center gap-2"
-                    >
-                      <span className="material-symbols-outlined text-[15px]">grid_view</span>
-                      Workspaces
-                    </Link>
-                    {user?.isLoggedIn ? (
-                      <button
-                        onClick={() => {
-                          logoutUser();
-                          setShowUserDropdown(false);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-[#2a2a2a] text-red-400 flex items-center gap-2"
-                      >
-                        <span className="material-symbols-outlined text-[15px]">logout</span>
-                        Log Out
-                      </button>
-                    ) : (
-                      <Link
-                        href="/auth"
-                        onClick={() => setShowUserDropdown(false)}
-                        className="w-full text-left px-3 py-2 hover:bg-[#2a2a2a] text-[#adc6ff] flex items-center gap-2"
-                      >
-                        <span className="material-symbols-outlined text-[15px]">login</span>
-                        Sign In / Register
-                      </Link>
-                    )}
-                  </div>
-                )}
+        {(variant === "dashboard" || variant === "ide") && (
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 p-1 rounded-lg border border-white/10 hover:border-white/20 bg-[#17171a] transition-all"
+            >
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow"
+                style={{ backgroundColor: user.avatarColor || "#4d8eff" }}
+              >
+                {user.initials}
               </div>
-            </>
-          )}
-        </div>
-      </nav>
+              <span className="font-code text-xs text-[#ededed] hidden sm:block pr-1">
+                {user.handle}
+              </span>
+              <span className="material-symbols-outlined text-[16px] text-[#727685]">
+                expand_more
+              </span>
+            </button>
 
-      {showCreateModal && (
-        <CreateRoomModal onClose={() => setShowCreateModal(false)} />
-      )}
-      {showJoinModal && (
-        <JoinRoomModal onClose={() => setShowJoinModal(false)} />
-      )}
-    </>
+            {/* Dropdown Menu */}
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-[#17171a] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden font-code text-xs">
+                <div className="p-3 border-b border-white/10 bg-[#111113]">
+                  <div className="font-bold text-[#ededed]">{user.handle}</div>
+                  <div className="text-[11px] text-[#727685] truncate">{user.email}</div>
+                  <div className="mt-1 flex items-center gap-1.5 text-[10px] text-[#adc6ff]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                    <span>Provider: {user.provider || "email"}</span>
+                  </div>
+                </div>
+
+                <div className="p-1 space-y-0.5">
+                  <button
+                    onClick={toggleTheme}
+                    className="w-full px-3 py-2 text-left hover:bg-[#28282e] text-[#ededed] rounded-lg transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[16px]">
+                        {theme === "dark" ? "light_mode" : "dark_mode"}
+                      </span>
+                      Theme
+                    </span>
+                    <span className="text-[10px] text-[#727685] uppercase">{theme}</span>
+                  </button>
+
+                  <Link
+                    href="/workspaces"
+                    onClick={() => setShowUserMenu(false)}
+                    className="w-full px-3 py-2 text-left hover:bg-[#28282e] text-[#ededed] rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">grid_view</span>
+                    All Workspaces
+                  </Link>
+
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-3 py-2 text-left hover:bg-red-950/40 text-red-400 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">logout</span>
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </nav>
   );
 }
