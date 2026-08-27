@@ -8,6 +8,7 @@ import { getRoomFiles, saveRoomFiles } from "@/lib/roomStorage";
 import { executeCodeInBrowser } from "@/lib/codeRunner";
 import { getUserSession, UserSession } from "@/lib/authSession";
 import EditorSettingsModal from "./EditorSettingsModal";
+import TeamDiscussionChat from "./TeamDiscussionChat";
 import confetti from "canvas-confetti";
 
 // Dynamically import Monaco Editor to prevent SSR issues
@@ -32,6 +33,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   const [activeTabPanel, setActiveTabPanel] = useState<"terminal" | "output" | "problems">("terminal");
   const [activeActivity, setActiveActivity] = useState<"explorer" | "search" | "git" | "run" | "ai">("explorer");
   const [showAIPanel, setShowAIPanel] = useState(true);
+  const [rightPanelTab, setRightPanelTab] = useState<"ai" | "team">("ai");
   const [editorNotice, setEditorNotice] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
   const [user, setUser] = useState<UserSession | null>(null);
@@ -914,47 +916,89 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
           </div>
         </div>
 
-        {/* AI Assistant Panel */}
+        {/* Right Drawer (AI Assistant / Team Discussion) */}
         {showAIPanel && (
-          <div className="w-80 bg-[#181818] border-l border-[#2d2d2d] flex flex-col shrink-0">
-            <div className="p-3 border-b border-[#2d2d2d] flex justify-between items-center bg-[#121212]">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#d0bcff] text-[18px]">
-                  auto_awesome
-                </span>
-                <span className="font-code text-xs font-semibold text-[#e5e2e1]">
-                  CODEMESH ASSISTANT
-                </span>
+          <div className="w-80 md:w-96 bg-[#181818] border-l border-[#2d2d2d] flex flex-col shrink-0">
+            {/* Tab Switcher Header */}
+            <div className="border-b border-[#2d2d2d] flex items-center justify-between bg-[#121212] px-2">
+              <div className="flex">
+                <button
+                  onClick={() => setRightPanelTab("ai")}
+                  className={`px-3 py-2.5 font-code text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors ${
+                    rightPanelTab === "ai"
+                      ? "border-[#d0bcff] text-[#d0bcff] bg-[#181818]"
+                      : "border-transparent text-[#8c909f] hover:text-[#e5e2e1]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                  <span>AI Assistant</span>
+                </button>
+                <button
+                  onClick={() => setRightPanelTab("team")}
+                  className={`px-3 py-2.5 font-code text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors ${
+                    rightPanelTab === "team"
+                      ? "border-[#adc6ff] text-[#adc6ff] bg-[#181818]"
+                      : "border-transparent text-[#8c909f] hover:text-[#e5e2e1]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">forum</span>
+                  <span>Team Chat</span>
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                </button>
               </div>
+
               <button
                 onClick={() => setShowAIPanel(false)}
-                className="text-[#8c909f] hover:text-[#e5e2e1]"
+                className="text-[#8c909f] hover:text-[#e5e2e1] p-1"
+                title="Collapse right panel"
               >
                 <span className="material-symbols-outlined text-[16px]">close</span>
               </button>
             </div>
 
-            {/* Quick Prompts */}
-            <div className="p-2.5 border-b border-[#2d2d2d] bg-[#1c1b1b] flex flex-wrap gap-1.5">
-              <button
-                onClick={() => handleSendPromptText(`Explain the architecture and functions in ${activeFile?.name}`)}
-                className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
-              >
-                Explain Code
-              </button>
-              <button
-                onClick={() => handleSendPromptText(`Optimize performance and concurrency in ${activeFile?.name}`)}
-                className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
-              >
-                Optimize
-              </button>
-              <button
-                onClick={() => handleSendPromptText(`Write comprehensive unit tests for ${activeFile?.name}`)}
-                className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
-              >
-                Generate Tests
-              </button>
-            </div>
+            {/* Render Team Discussion Chat */}
+            {rightPanelTab === "team" && (
+              <TeamDiscussionChat
+                roomId={roomId}
+                activeFileName={activeFile?.name}
+                activeCodeSelection={activeFile?.content}
+                members={members}
+                onOpenCodeRef={(fileName) => {
+                  const target = files.find((f) => f.name === fileName);
+                  if (target) {
+                    setActiveFileId(target.id);
+                    if (!openTabIds.includes(target.id)) {
+                      setOpenTabIds([...openTabIds, target.id]);
+                    }
+                  }
+                }}
+              />
+            )}
+
+            {/* Render AI Assistant */}
+            {rightPanelTab === "ai" && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Quick Prompts */}
+                <div className="p-2.5 border-b border-[#2d2d2d] bg-[#1c1b1b] flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => handleSendPromptText(`Explain the architecture and functions in ${activeFile?.name}`)}
+                    className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
+                  >
+                    Explain Code
+                  </button>
+                  <button
+                    onClick={() => handleSendPromptText(`Optimize performance and concurrency in ${activeFile?.name}`)}
+                    className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
+                  >
+                    Optimize
+                  </button>
+                  <button
+                    onClick={() => handleSendPromptText(`Write comprehensive unit tests for ${activeFile?.name}`)}
+                    className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
+                  >
+                    Generate Tests
+                  </button>
+                </div>
 
             {/* Chat History */}
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
@@ -1053,6 +1097,8 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
             </form>
           </div>
         )}
+      </div>
+    )}
       </div>
 
       {showSettingsModal && (

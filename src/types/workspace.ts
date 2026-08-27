@@ -9,38 +9,57 @@ export interface WorkspaceFile {
 export interface RoomMember {
   id: string;
   name: string;
-  avatarColor: string;
-  initials: string;
-  status: "active" | "idle" | "offline";
-  isHost?: boolean;
+  color?: string;
+  avatarColor?: string;
+  initials?: string;
+  status?: string;
+  cursor?: { line: number; col: number };
+  activeFile?: string;
   activeLine?: number;
-  currentAction?: "editing" | "viewing" | "running";
-}
-
-export interface CollaborativeCursor {
-  memberId: string;
-  name: string;
-  color: string;
-  line: number;
-  column: number;
+  currentAction?: string;
+  isHost?: boolean;
 }
 
 export interface AIChatMessage {
   id: string;
-  role: "user" | "assistant" | "system";
+  sender?: "user" | "ai" | "system";
+  role?: "user" | "ai" | "assistant" | "system";
   text: string;
-  codeSnippet?: string;
   timestamp: string;
-  isStreaming?: boolean;
+  codeSnippet?: string;
+}
+
+export interface TeamChatCodeRef {
+  fileName: string;
+  lines?: string;
+  snippet?: string;
+}
+
+export interface TeamChatReaction {
+  emoji: string;
+  count: number;
+  users: string[];
+}
+
+export interface TeamChatMessage {
+  id: string;
+  roomId: string;
+  senderId: string;
+  senderName: string;
+  senderColor: string;
+  content: string;
+  codeRef?: TeamChatCodeRef;
+  timestamp: string;
+  reactions?: TeamChatReaction[];
 }
 
 export interface WorkspaceProject {
   id: string;
   title: string;
   description: string;
-  template: "blank" | "python-ds" | "nodejs" | "rust-worker";
-  tags: { name: string; variant: "primary" | "neutral" }[];
-  activeAgo: string;
   membersCount: number;
-  files: WorkspaceFile[];
+  activeAgo: string;
+  tags: { name: string; variant: "primary" | "default" | "neutral" }[];
+  template?: string;
+  files?: WorkspaceFile[];
 }
