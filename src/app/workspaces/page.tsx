@@ -5,68 +5,40 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import CreateRoomModal from "@/components/CreateRoomModal";
 import JoinRoomModal from "@/components/JoinRoomModal";
-
-interface WorkspaceCardData {
-  id: string;
-  title: string;
-  description: string;
-  tags: { name: string; variant: "primary" | "neutral" }[];
-  activeAgo: string;
-  membersCount: number;
-}
-
-const defaultWorkspaces: WorkspaceCardData[] = [
-  {
-    id: "compsci-101-final",
-    title: "CompSci 101 Final",
-    description: "Collaborative environment for final project algorithms and data structures.",
-    tags: [
-      { name: "Python", variant: "primary" },
-      { name: "Jupyter", variant: "neutral" },
-    ],
-    activeAgo: "2h ago",
-    membersCount: 2,
-  },
-  {
-    id: "hackathon-app",
-    title: "Hackathon App",
-    description: "React Native mobile application prototype for the weekend hackathon.",
-    tags: [
-      { name: "TypeScript", variant: "primary" },
-      { name: "React", variant: "neutral" },
-    ],
-    activeAgo: "1d ago",
-    membersCount: 1,
-  },
-  {
-    id: "distributed-stream-engine",
-    title: "Distributed Stream Engine",
-    description: "High-throughput event consumer with pgvector semantic similarity search pipeline.",
-    tags: [
-      { name: "Rust", variant: "primary" },
-      { name: "Tokio", variant: "neutral" },
-    ],
-    activeAgo: "Just now",
-    membersCount: 3,
-  },
-];
+import { WorkspaceProject } from "@/types/workspace";
+import {
+  getStoredWorkspaces,
+  deleteStoredWorkspace,
+  addStoredWorkspace,
+} from "@/lib/roomStorage";
 
 export default function WorkspacesPage() {
-  const [workspaces, setWorkspaces] = useState<WorkspaceCardData[]>(defaultWorkspaces);
+  const [workspaces, setWorkspaces] = useState<WorkspaceProject[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/rooms")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.rooms && Array.isArray(data.rooms)) {
-          setWorkspaces(data.rooms);
-        }
-      })
-      .catch((err) => console.warn("Using local rooms fallback", err));
+    setWorkspaces(getStoredWorkspaces());
   }, []);
+
+  const handleDeleteRoom = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const updated = deleteStoredWorkspace(id);
+    setWorkspaces(updated);
+    setNotice(`Deleted room "${id}"`);
+    setTimeout(() => setNotice(null), 2500);
+  };
+
+  const handleRoomCreated = (newRoom: unknown) => {
+    const created = newRoom as WorkspaceProject;
+    if (created?.id) {
+      const updated = addStoredWorkspace(created);
+      setWorkspaces(updated);
+    }
+  };
 
   const filteredWorkspaces = workspaces.filter(
     (w) =>
@@ -81,13 +53,21 @@ export default function WorkspacesPage() {
 
       <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#0a0a0a]">
         <div className="max-w-6xl mx-auto mt-4">
+          {/* Notification Banner */}
+          {notice && (
+            <div className="mb-4 bg-[#201f1f] border border-[#adc6ff] text-[#adc6ff] px-4 py-2 rounded-md text-xs font-code flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">info</span>
+              <span>{notice}</span>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
               <h1 className="font-headline text-2xl md:text-3xl font-bold text-[#e5e2e1] mb-1">
                 Workspaces
               </h1>
               <p className="text-sm text-[#c2c6d6]">
-                Select a project or create a new room to start collaborating with your team.
+                Select a project or create a new room to start collaborating with your team in real time.
               </p>
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -143,21 +123,30 @@ export default function WorkspacesPage() {
                       {ws.title}
                     </span>
                   </div>
-                  <div className="flex -space-x-1.5">
-                    {Array.from({ length: ws.membersCount || 2 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`w-6 h-6 rounded-full border border-[#201f1f] flex items-center justify-center text-[9px] font-bold ${
-                          i === 0
-                            ? "bg-[#4d8eff] text-white"
-                            : i === 1
-                            ? "bg-[#ffb786] text-[#502400]"
-                            : "bg-[#d0bcff] text-[#3c0091]"
-                        }`}
-                      >
-                        {i === 0 ? "YOU" : i === 1 ? "AL" : "SJ"}
-                      </div>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    <div className="flex -space-x-1.5">
+                      {Array.from({ length: ws.membersCount || 2 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-6 h-6 rounded-full border border-[#201f1f] flex items-center justify-center text-[9px] font-bold ${
+                            i === 0
+                              ? "bg-[#4d8eff] text-white"
+                              : i === 1
+                              ? "bg-[#ffb786] text-[#502400]"
+                              : "bg-[#d0bcff] text-[#3c0091]"
+                          }`}
+                        >
+                          {i === 0 ? "YOU" : i === 1 ? "AL" : "SJ"}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={(e) => handleDeleteRoom(ws.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-[#8c909f] transition-opacity"
+                      title="Delete room"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                    </button>
                   </div>
                 </div>
 
@@ -192,15 +181,30 @@ export default function WorkspacesPage() {
               </Link>
             ))}
           </div>
+
+          {filteredWorkspaces.length === 0 && (
+            <div className="text-center py-16 bg-[#1c1b1b] rounded-lg border border-[#424754]/50 p-6">
+              <span className="material-symbols-outlined text-4xl text-[#8c909f] mb-2">
+                folder_off
+              </span>
+              <p className="font-code text-sm text-[#c2c6d6]">
+                No workspaces match &quot;{searchQuery}&quot;
+              </p>
+              <button
+                onClick={() => setSearchQuery("")}
+                className="mt-3 text-xs text-[#adc6ff] underline font-code"
+              >
+                Clear Search Filter
+              </button>
+            </div>
+          )}
         </div>
       </main>
 
       {showCreateModal && (
         <CreateRoomModal
           onClose={() => setShowCreateModal(false)}
-          onCreated={(newRoom) =>
-            setWorkspaces((prev) => [newRoom as WorkspaceCardData, ...prev])
-          }
+          onCreated={handleRoomCreated}
         />
       )}
       {showJoinModal && (

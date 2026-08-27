@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { setUserSession } from "@/lib/authSession";
+import confetti from "canvas-confetti";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -10,10 +12,31 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [handle, setHandle] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Navigate to workspaces upon login/signup
+    setIsLoading(true);
+
+    const userHandle = handle.trim() || email.split("@")[0] || "engineer";
+    setUserSession({
+      handle: userHandle,
+      email: email.trim() || `${userHandle}@codemesh.dev`,
+    });
+
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+    setTimeout(() => {
+      router.push("/workspaces");
+    }, 400);
+  };
+
+  const handleGitHubAuth = () => {
+    setUserSession({
+      handle: "octocat_dev",
+      email: "octocat@github.com",
+      avatarColor: "#adc6ff",
+    });
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
     router.push("/workspaces");
   };
 
@@ -58,6 +81,7 @@ export default function AuthPage() {
 
           <div className="w-full flex rounded border border-[#424754] p-[3px] bg-[#131313]">
             <button
+              type="button"
               className={`flex-1 py-1.5 text-center font-code text-xs font-semibold rounded transition-colors ${
                 tab === "login"
                   ? "bg-[#353534] text-[#e5e2e1]"
@@ -68,6 +92,7 @@ export default function AuthPage() {
               LOGIN
             </button>
             <button
+              type="button"
               className={`flex-1 py-1.5 text-center font-code text-xs font-semibold rounded transition-colors ${
                 tab === "signup"
                   ? "bg-[#353534] text-[#e5e2e1]"
@@ -125,9 +150,10 @@ export default function AuthPage() {
 
               <button
                 type="submit"
+                disabled={isLoading}
                 className="mt-2 w-full bg-[#adc6ff] text-[#002e6a] font-code text-xs font-bold py-3 rounded hover:bg-[#d8e2ff] transition-colors flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(173,198,255,0.2)]"
               >
-                <span>AUTHENTICATE</span>
+                <span>{isLoading ? "AUTHENTICATING..." : "AUTHENTICATE"}</span>
                 <span className="material-symbols-outlined text-[16px]">
                   arrow_forward
                 </span>
@@ -145,7 +171,7 @@ export default function AuthPage() {
             <div className="mt-5">
               <button
                 type="button"
-                onClick={() => router.push("/workspaces")}
+                onClick={handleGitHubAuth}
                 className="w-full flex items-center justify-center gap-3 bg-[#131313] border border-[#424754] py-2.5 rounded hover:bg-[#201f1f] transition-colors text-xs font-medium text-[#e5e2e1]"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -171,7 +197,7 @@ export default function AuthPage() {
                 <input
                   type="text"
                   required
-                  placeholder="username"
+                  placeholder="e.g. alex_code"
                   value={handle}
                   onChange={(e) => setHandle(e.target.value)}
                   className="w-full bg-[#131313] border border-[#424754] text-[#e5e2e1] font-code text-xs p-2.5 rounded focus:border-[#adc6ff] focus:outline-none transition-colors placeholder:text-[#8c909f]"
@@ -208,9 +234,10 @@ export default function AuthPage() {
 
               <button
                 type="submit"
+                disabled={isLoading}
                 className="mt-2 w-full bg-[#adc6ff] text-[#002e6a] font-code text-xs font-bold py-3 rounded hover:bg-[#d8e2ff] transition-colors flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(173,198,255,0.2)]"
               >
-                <span>PROVISION WORKSPACE</span>
+                <span>{isLoading ? "PROVISIONING..." : "PROVISION WORKSPACE"}</span>
                 <span className="material-symbols-outlined text-[16px]">
                   add_box
                 </span>

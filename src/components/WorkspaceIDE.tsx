@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Navbar from "./Navbar";
 import { WorkspaceFile, RoomMember, AIChatMessage } from "@/types/workspace";
+import { getRoomFiles, saveRoomFiles } from "@/lib/roomStorage";
+import { executeCodeInBrowser } from "@/lib/codeRunner";
+import { getUserSession, UserSession } from "@/lib/authSession";
 import confetti from "canvas-confetti";
 
 // Dynamically import Monaco Editor to prevent SSR issues
@@ -12,7 +15,7 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   loading: () => (
     <div className="flex-1 flex items-center justify-center bg-[#0a0a0a] text-xs font-code text-[#8c909f]">
       <span className="w-2 h-2 rounded-full bg-[#adc6ff] animate-ping mr-2"></span>
-      Initializing Monaco IDE Environment...
+      Initializing Monaco Cloud Environment...
     </div>
   ),
 });
@@ -21,164 +24,93 @@ interface WorkspaceIDEProps {
   roomId?: string;
 }
 
-const defaultFiles: WorkspaceFile[] = [
-  {
-    id: "f1",
-    name: "main.py",
-    language: "python",
-    isEntry: true,
-    content: `import os
-import sys
-import time
-from typing import List, Dict
-
-# CodeMesh Real-Time Distributed Processing Engine
-def process_data_stream(stream_id: str, payload: Dict) -> bool:
-    """
-    Executes high-throughput stream processing with collaborative
-    AST sync and automated pgvector RAG memory mapping.
-    """
-    try:
-        buffer_size = payload.get('buffer', 2048)
-        if not stream_id:
-            raise ValueError("Stream ID cannot be null")
-        
-        print(f"[CodeMesh] Ingesting stream '{stream_id}' with buffer {buffer_size}...")
-        
-        # Simulated payload processing
-        records_processed = len(payload.get('data', [1, 2, 3, 4, 5]))
-        print(f"[CodeMesh] Successfully processed {records_processed} records.")
-        return True
-        
-    except Exception as e:
-        print(f"[Error] Stream failure: {e}")
-        return False
-
-if __name__ == "__main__":
-    test_payload = {"buffer": 2048, "data": ["packet_A", "packet_B", "packet_C"]}
-    success = process_data_stream("Beta-Omega-9", test_payload)
-    print(f"Execution finished with status: {success}")
-`,
-  },
-  {
-    id: "f2",
-    name: "utils.py",
-    language: "python",
-    content: `import time
-import logging
-
-logger = logging.getLogger("codemesh.stream")
-
-def get_optimal_buffer() -> int:
-    """Calculates optimal buffer size based on system concurrency."""
-    return 4096
-
-def apply_transforms(data: dict, buffer_size: int) -> dict:
-    start_ts = time.time()
-    return {
-        "buffer_used": buffer_size,
-        "latency_ms": round((time.time() - start_ts) * 1000, 3)
-    }
-`,
-  },
-  {
-    id: "f3",
-    name: "config.json",
-    language: "json",
-    content: `{
-  "workspace_id": "beta-omega-9",
-  "engine_version": "2.4.1-stable",
-  "max_concurrency": 16,
-  "telemetry": true,
-  "rag_index": {
-    "files_indexed": 42,
-    "vector_dim": 1536
-  }
-}
-`,
-  },
-];
-
-export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEProps) {
-  const [files, setFiles] = useState<WorkspaceFile[]>(defaultFiles);
-  const [activeFileId, setActiveFileId] = useState<string>("f1");
-  const [openTabIds, setOpenTabIds] = useState<string[]>(["f1", "f2"]);
+export default function WorkspaceIDE({ roomId = "workspace-default" }: WorkspaceIDEProps) {
+  const [files, setFiles] = useState<WorkspaceFile[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string>("");
+  const [openTabIds, setOpenTabIds] = useState<string[]>([]);
   const [activeTabPanel, setActiveTabPanel] = useState<"terminal" | "output" | "problems">("terminal");
   const [activeActivity, setActiveActivity] = useState<"explorer" | "search" | "git" | "run" | "ai">("explorer");
   const [showAIPanel, setShowAIPanel] = useState(true);
   const [editorNotice, setEditorNotice] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
+  const [user, setUser] = useState<UserSession | null>(null);
 
   // New File State
   const [isCreatingFile, setIsCreatingFile] = useState(false);
   const [newFileName, setNewFileName] = useState("");
 
   // Terminal State
-  const [terminalHistory, setTerminalHistory] = useState<string[]>([
-    "user@codemesh:~/project$ python main.py",
-    "[CodeMesh] Ingesting stream 'Beta-Omega-9' with buffer 2048...",
-    "[CodeMesh] Successfully processed 3 records.",
-    "Execution finished with status: True",
-    "user@codemesh:~/project$ ",
-  ]);
+  const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
   const [terminalInput, setTerminalInput] = useState("");
   const terminalEndRef = useRef<HTMLDivElement>(null);
-
-  // Members
-  const [members] = useState<RoomMember[]>([
-    {
-      id: "m1",
-      name: "You",
-      initials: "YOU",
-      avatarColor: "#4d8eff",
-      status: "active",
-      isHost: true,
-      currentAction: "editing",
-    },
-    {
-      id: "m2",
-      name: "Alex",
-      initials: "AL",
-      avatarColor: "#adc6ff",
-      status: "active",
-      activeLine: 14,
-      currentAction: "editing",
-    },
-    {
-      id: "m3",
-      name: "Sam",
-      initials: "SJ",
-      avatarColor: "#ffb786",
-      status: "active",
-      activeLine: 8,
-      currentAction: "viewing",
-    },
-  ]);
 
   // AI Assistant State
   const [aiPrompt, setAiPrompt] = useState("");
   const [isAILoading, setIsAILoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [aiChat, setAiChat] = useState<AIChatMessage[]>([
+  const [aiChat, setAiChat] = useState<AIChatMessage[]>([]);
+
+  // Load initial dynamic files per room
+  useEffect(() => {
+    const currentUser = getUserSession();
+    setUser(currentUser);
+
+    const initialFiles = getRoomFiles(roomId);
+    setFiles(initialFiles);
+
+    if (initialFiles.length > 0) {
+      setActiveFileId(initialFiles[0].id);
+      setOpenTabIds(initialFiles.slice(0, 2).map((f) => f.id));
+    }
+
+    setTerminalHistory([
+      `user@codemesh:~/${roomId}$ # Workspace initialized`,
+      `[CodeMesh Container] Active room: ${roomId}`,
+      `[RAG Engine] pgvector indexed ${initialFiles.length} project files.`,
+      `Type 'run' or 'python <file>' to execute code. Type 'help' for commands.`,
+      `user@codemesh:~/${roomId}$ `,
+    ]);
+
+    setAiChat([
+      {
+        id: "c_init",
+        role: "assistant",
+        text: `Hello! I'm CodeMesh AI. I have indexed ${initialFiles.length} files in room "${roomId}". Ask me to explain, optimize, or write code!`,
+        timestamp: "Just now",
+      },
+    ]);
+  }, [roomId]);
+
+  // Dynamic Members with current logged in user
+  const members: RoomMember[] = [
     {
-      id: "c1",
-      role: "assistant",
-      text: `Hello! I'm CodeMesh AI Assistant. I have indexed ${files.length} files in this workspace with real-time pgvector RAG memory. How can I assist you with ${roomId}?`,
-      timestamp: "Just now",
+      id: "m_user",
+      name: user?.isLoggedIn ? `@${user.handle}` : "You",
+      initials: user?.initials || "YOU",
+      avatarColor: user?.avatarColor || "#4d8eff",
+      status: "active",
+      isHost: true,
+      currentAction: "editing",
     },
     {
-      id: "c2",
-      role: "user",
-      text: "Can we optimize the buffer size allocation in main.py?",
-      timestamp: "2m ago",
+      id: "m_alex",
+      name: "Alex",
+      initials: "AL",
+      avatarColor: "#adc6ff",
+      status: "active",
+      activeLine: 12,
+      currentAction: "editing",
     },
     {
-      id: "c3",
-      role: "assistant",
-      text: "Yes! Currently, buffer size defaults statically to 2048. We can import get_optimal_buffer() from utils.py for dynamic sizing under high concurrency:",
-      codeSnippet: `from utils import get_optimal_buffer\n\n# Dynamic Buffer Allocation\nbuffer_size = payload.get('buffer', get_optimal_buffer())\nprint(f"[Optimized] Stream allocated {buffer_size} bytes.")`,
-      timestamp: "1m ago",
+      id: "m_sam",
+      name: "Sarah J.",
+      initials: "SJ",
+      avatarColor: "#ffb786",
+      status: "active",
+      activeLine: 6,
+      currentAction: "viewing",
     },
-  ]);
+  ];
 
   const activeFile = files.find((f) => f.id === activeFileId) || files[0];
 
@@ -186,12 +118,21 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [terminalHistory]);
 
-  const handleEditorChange = (value: string | undefined) => {
-    if (value === undefined) return;
-    setFiles((prev) =>
-      prev.map((f) => (f.id === activeFileId ? { ...f, content: value } : f))
-    );
-  };
+  const handleEditorChange = useCallback(
+    (value: string | undefined) => {
+      if (value === undefined || !activeFileId) return;
+      setSaveStatus("saving");
+
+      setFiles((prev) => {
+        const updated = prev.map((f) => (f.id === activeFileId ? { ...f, content: value } : f));
+        saveRoomFiles(roomId, updated);
+        return updated;
+      });
+
+      setTimeout(() => setSaveStatus("saved"), 400);
+    },
+    [activeFileId, roomId]
+  );
 
   const handleOpenFile = (fileId: string) => {
     if (!openTabIds.includes(fileId)) {
@@ -227,10 +168,12 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
       id: "file_" + Math.random().toString(36).substring(2, 7),
       name,
       language: lang,
-      content: `# ${name}\n\n# Created in CodeMesh Workspace\n`,
+      content: `# ${name}\n\n# CodeMesh Dynamic Workspace: ${roomId}\n`,
     };
 
-    setFiles([...files, newFile]);
+    const updated = [...files, newFile];
+    setFiles(updated);
+    saveRoomFiles(roomId, updated);
     setOpenTabIds([...openTabIds, newFile.id]);
     setActiveFileId(newFile.id);
     setIsCreatingFile(false);
@@ -242,27 +185,38 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
   const handleDeleteFile = (fileId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (files.length <= 1) return;
+    const targetFile = files.find((f) => f.id === fileId);
     const filtered = files.filter((f) => f.id !== fileId);
     setFiles(filtered);
+    saveRoomFiles(roomId, filtered);
+
     const updatedTabs = openTabIds.filter((id) => id !== fileId);
     setOpenTabIds(updatedTabs.length > 0 ? updatedTabs : [filtered[0].id]);
     if (activeFileId === fileId) {
       setActiveFileId(updatedTabs[0] || filtered[0].id);
     }
+    setEditorNotice(`Deleted ${targetFile?.name || "file"}`);
+    setTimeout(() => setEditorNotice(null), 2500);
   };
 
-  // Run Code Command
+  // Real In-Browser Code Execution Runner
   const handleRunActiveFile = () => {
+    if (!activeFile) return;
     setActiveTabPanel("terminal");
     const timestamp = new Date().toLocaleTimeString();
+
+    const result = executeCodeInBrowser(activeFile.name, activeFile.content);
+
     setTerminalHistory((prev) => [
       ...prev,
-      `user@codemesh:~/project$ python ${activeFile.name}`,
-      `[${timestamp}] Launching ${activeFile.name} in container sandbox...`,
-      `[Output] Code execution completed successfully. (Return code: 0)`,
-      `user@codemesh:~/project$ `,
+      `user@codemesh:~/${roomId}$ run ${activeFile.name}`,
+      `[${timestamp}] Executing ${activeFile.name} (${activeFile.language})...`,
+      ...result.logs,
+      `[Process completed in ${result.durationMs}ms with exit code ${result.hasError ? 1 : 0}]`,
+      `user@codemesh:~/${roomId}$ `,
     ]);
-    setEditorNotice(`Executed ${activeFile.name}`);
+
+    setEditorNotice(`Executed ${activeFile.name} (${result.durationMs}ms)`);
     setTimeout(() => setEditorNotice(null), 2500);
   };
 
@@ -273,57 +227,92 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
     if (!cmd) return;
 
     setTerminalInput("");
-    const newLogs = [`user@codemesh:~/project$ ${cmd}`];
+    const newLogs = [`user@codemesh:~/${roomId}$ ${cmd}`];
 
     if (cmd === "clear") {
-      setTerminalHistory(["user@codemesh:~/project$ "]);
+      setTerminalHistory([`user@codemesh:~/${roomId}$ `]);
       return;
     } else if (cmd === "help") {
       newLogs.push(
         "Available commands in CodeMesh Cloud Shell:",
-        "  python <file>   Execute Python script in isolated container",
-        "  run             Run current active file",
+        "  run [file]      Execute active or target file with live sandbox",
+        "  python <file>   Execute Python script",
+        "  node <file>     Execute JavaScript / TypeScript code",
         "  ls              List all workspace files",
-        "  cat <file>      Display contents of a file",
-        "  ai <prompt>     Ask CodeMesh RAG assistant via CLI",
+        "  cat <file>      Display source code of a file",
+        "  touch <file>    Create a new file",
+        "  rm <file>       Remove a file",
+        "  ai <prompt>     Query CodeMesh RAG assistant via CLI",
         "  clear           Clear terminal window",
         "  share           Get workspace invite link"
       );
     } else if (cmd === "ls") {
-      newLogs.push(files.map((f) => f.name).join("   "));
+      newLogs.push(files.map((f) => `${f.name} (${f.language})`).join("   "));
     } else if (cmd.startsWith("cat ")) {
       const targetName = cmd.replace("cat ", "").trim();
       const targetFile = files.find((f) => f.name === targetName);
       if (targetFile) {
         newLogs.push(targetFile.content);
       } else {
-        newLogs.push(`cat: ${targetName}: No such file or directory`);
+        newLogs.push(`cat: ${targetName}: No such file in workspace`);
       }
-    } else if (cmd.startsWith("python ") || cmd === "run") {
-      const fileName = cmd === "run" ? activeFile.name : cmd.replace("python ", "").trim();
-      newLogs.push(
-        `[CodeMesh Runtime] Executing ${fileName}...`,
-        `[Stream ${roomId}] Verified AST checksum & dependencies.`,
-        `Program terminated with exit code 0.`
-      );
+    } else if (cmd.startsWith("touch ")) {
+      const targetName = cmd.replace("touch ", "").trim();
+      if (targetName) {
+        const newF: WorkspaceFile = {
+          id: "f_" + Math.random().toString(36).substring(2, 7),
+          name: targetName,
+          language: targetName.endsWith(".py") ? "python" : targetName.endsWith(".ts") ? "typescript" : "plaintext",
+          content: `# ${targetName}\n`,
+        };
+        const updated = [...files, newF];
+        setFiles(updated);
+        saveRoomFiles(roomId, updated);
+        newLogs.push(`Created file '${targetName}'`);
+      }
+    } else if (cmd.startsWith("rm ")) {
+      const targetName = cmd.replace("rm ", "").trim();
+      const targetFile = files.find((f) => f.name === targetName);
+      if (targetFile && files.length > 1) {
+        const filtered = files.filter((f) => f.id !== targetFile.id);
+        setFiles(filtered);
+        saveRoomFiles(roomId, filtered);
+        newLogs.push(`Removed file '${targetName}'`);
+      } else {
+        newLogs.push(`rm: cannot remove '${targetName}'`);
+      }
+    } else if (cmd.startsWith("run") || cmd.startsWith("python") || cmd.startsWith("node")) {
+      const parts = cmd.split(" ");
+      const targetName = parts[1] || activeFile?.name;
+      const targetFile = files.find((f) => f.name === targetName) || activeFile;
+
+      if (targetFile) {
+        const result = executeCodeInBrowser(targetFile.name, targetFile.content);
+        newLogs.push(
+          `[Runtime] Executing ${targetFile.name}...`,
+          ...result.logs,
+          `[Exit code: ${result.hasError ? 1 : 0} in ${result.durationMs}ms]`
+        );
+      }
     } else if (cmd.startsWith("ai ")) {
       const prompt = cmd.replace("ai ", "");
-      newLogs.push(`[Gemini RAG] Query received: "${prompt}"`, `Analyzing codebase context...`);
+      newLogs.push(`[Gemini RAG] Query received: "${prompt}"`, `Indexing codebase context...`);
       handleSendPromptText(prompt);
     } else if (cmd === "share") {
       navigator.clipboard.writeText(window.location.href);
       newLogs.push(`[Share] Workspace invite link copied to clipboard!`);
+      confetti({ particleCount: 40, spread: 50, origin: { y: 0.2 } });
     } else {
-      newLogs.push(`command not found: ${cmd}. Type 'help' for available commands.`);
+      newLogs.push(`command not found: '${cmd}'. Type 'help' for available commands.`);
     }
 
-    newLogs.push("user@codemesh:~/project$ ");
+    newLogs.push(`user@codemesh:~/${roomId}$ `);
     setTerminalHistory((prev) => [...prev, ...newLogs]);
   };
 
   // AI Prompt Handling
   const handleSendPromptText = async (promptText: string) => {
-    if (!promptText.trim() || isAILoading) return;
+    if (!promptText.trim() || isAILoading || !activeFile) return;
 
     const userMessage: AIChatMessage = {
       id: "u_" + Date.now(),
@@ -365,8 +354,8 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
         {
           id: "a_" + Date.now(),
           role: "assistant",
-          text: `Analyzed ${activeFile.name}. Here is the optimized solution:`,
-          codeSnippet: `from utils import get_optimal_buffer\n\nbuffer_size = get_optimal_buffer()`,
+          text: `Context aware of ${activeFile.name}. Here is the dynamic solution:`,
+          codeSnippet: `// Optimized for ${roomId}\nconsole.log("CodeMesh stream operational");`,
           timestamp: "Just now",
         },
       ]);
@@ -376,23 +365,41 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
   };
 
   const handleApplySnippet = (snippet: string) => {
-    setFiles((prev) =>
-      prev.map((f) =>
-        f.id === activeFileId
-          ? { ...f, content: `${f.content}\n\n# Applied from CodeMesh AI:\n${snippet}\n` }
-          : f
-      )
-    );
+    if (!activeFile) return;
+    const newContent = `${activeFile.content}\n\n# Applied from CodeMesh AI:\n${snippet}\n`;
+    handleEditorChange(newContent);
     setEditorNotice(`Appended AI patch to ${activeFile.name}!`);
+    setTimeout(() => setEditorNotice(null), 3000);
+  };
+
+  const handleExportWorkspace = () => {
+    const bundle = files.map((f) => `// === File: ${f.name} ===\n${f.content}`).join("\n\n");
+    const blob = new Blob([bundle], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${roomId}-workspace-export.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setEditorNotice(`Exported ${files.length} project files!`);
     setTimeout(() => setEditorNotice(null), 3000);
   };
 
   const handleShareRoom = () => {
     navigator.clipboard.writeText(window.location.href);
-    confetti({ particleCount: 50, spread: 60, origin: { y: 0.1 } });
+    confetti({ particleCount: 60, spread: 70, origin: { y: 0.1 } });
     setEditorNotice("Invite link copied to clipboard!");
     setTimeout(() => setEditorNotice(null), 3000);
   };
+
+  if (files.length === 0 || !activeFile) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[#131313] text-[#adc6ff] font-code text-sm">
+        <span className="w-2 h-2 rounded-full bg-[#adc6ff] animate-ping mr-3"></span>
+        Loading Workspace {roomId}...
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#131313] text-[#e5e2e1]">
@@ -418,7 +425,7 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
             <button
               onClick={handleRunActiveFile}
               className="w-full flex justify-center py-2.5 text-[#ffb786] hover:bg-[#201f1f] transition-colors"
-              title="Run Active File"
+              title="Run Active File (Live Sandbox)"
             >
               <span className="material-symbols-outlined text-[20px]">play_arrow</span>
             </button>
@@ -436,6 +443,14 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
             </button>
 
             <button
+              onClick={handleExportWorkspace}
+              className="w-full flex justify-center py-2.5 text-[#c2c6d6] hover:text-[#adc6ff] hover:bg-[#201f1f] transition-colors"
+              title="Export All Files"
+            >
+              <span className="material-symbols-outlined text-[20px]">download</span>
+            </button>
+
+            <button
               onClick={handleShareRoom}
               className="w-full flex justify-center py-2.5 text-[#adc6ff] hover:bg-[#201f1f] transition-colors"
               title="Share Invite Link"
@@ -446,10 +461,11 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
 
           <div className="mt-auto flex flex-col gap-3 w-full pb-2">
             <div
-              className="w-7 h-7 rounded-full bg-[#4d8eff] flex items-center justify-center mx-auto text-xs font-bold text-white shadow"
-              title="You (Online)"
+              className="w-7 h-7 rounded-full flex items-center justify-center mx-auto text-xs font-bold text-white shadow border border-[#424754]"
+              style={{ backgroundColor: user?.avatarColor || "#4d8eff" }}
+              title={user?.isLoggedIn ? `@${user.handle}` : "Guest User"}
             >
-              YOU
+              {user?.initials || "YOU"}
             </div>
           </div>
         </aside>
@@ -475,11 +491,11 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
               <form onSubmit={handleCreateFile} className="p-2 bg-[#201f1f] border-b border-[#424754]">
                 <input
                   type="text"
-                  placeholder="e.g. server.py"
+                  placeholder="e.g. server.py or helper.ts"
                   value={newFileName}
                   onChange={(e) => setNewFileName(e.target.value)}
                   autoFocus
-                  className="w-full bg-[#121212] border border-[#adc6ff] rounded px-2 py-1 font-code text-xs text-[#e5e2e1] focus:outline-none"
+                  className="w-full bg-[#121212] border border-[#adc6ff] rounded px-2 py-1 font-code text-xs text-[#e5e2e1] focus:outline-none placeholder:text-[#8c909f]"
                 />
               </form>
             )}
@@ -490,7 +506,7 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
                 <span className="material-symbols-outlined text-[16px] text-[#c2c6d6]">
                   expand_more
                 </span>
-                <span className="font-code text-xs">src/</span>
+                <span className="font-code text-xs">{roomId}/</span>
               </div>
 
               {files.map((file) => {
@@ -500,8 +516,10 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
                     ? "text-[#519aba]"
                     : file.name.endsWith(".json")
                     ? "text-[#cbcb41]"
-                    : file.name.endsWith(".rs")
+                    : file.name.endsWith(".rs") || file.name.endsWith(".toml")
                     ? "text-[#ffb786]"
+                    : file.name.endsWith(".ts") || file.name.endsWith(".js")
+                    ? "text-[#4d8eff]"
                     : "text-[#adc6ff]";
 
                 return (
@@ -623,8 +641,16 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
               );
             })}
 
-            {/* Run Button in Tab Bar */}
-            <div className="ml-auto flex items-center pr-3">
+            {/* Run & Save Status in Tab Bar */}
+            <div className="ml-auto flex items-center gap-3 pr-3">
+              <span className="text-[11px] font-code text-[#8c909f] flex items-center gap-1">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    saveStatus === "saved" ? "bg-green-400" : "bg-amber-400 animate-ping"
+                  }`}
+                />
+                {saveStatus === "saved" ? "Auto-saved" : "Saving..."}
+              </span>
               <button
                 onClick={handleRunActiveFile}
                 className="bg-[#001a42] border border-[#00285d] text-[#adc6ff] px-2.5 py-1 rounded font-code text-xs hover:bg-[#00285d] transition-colors flex items-center gap-1"
@@ -639,7 +665,7 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
           <div className="px-4 py-1 bg-[#0a0a0a] flex items-center gap-1 border-b border-[#2d2d2d] shrink-0 text-[#8c909f] font-code text-xs">
             <span>CodeMesh</span>
             <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span>src</span>
+            <span>{roomId}</span>
             <span className="material-symbols-outlined text-[14px]">chevron_right</span>
             <span className="text-[#e5e2e1]">{activeFile.name}</span>
           </div>
@@ -702,7 +728,7 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
               </button>
               <div className="ml-auto flex gap-2">
                 <button
-                  onClick={() => setTerminalHistory(["user@codemesh:~/project$ "])}
+                  onClick={() => setTerminalHistory([`user@codemesh:~/${roomId}$ `])}
                   className="material-symbols-outlined text-[16px] text-[#8c909f] hover:text-[#adc6ff]"
                   title="Clear Terminal"
                 >
@@ -718,9 +744,9 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
                     <div key={idx} className="whitespace-pre-wrap">
                       {line.startsWith("user@codemesh") ? (
                         <span className="text-[#8c909f]">{line}</span>
-                      ) : line.includes("[CodeMesh]") || line.includes("✓") ? (
+                      ) : line.includes("[CodeMesh") || line.includes("✓") || line.includes("[Status") ? (
                         <span className="text-[#adc6ff]">{line}</span>
-                      ) : line.includes("[Error]") ? (
+                      ) : line.includes("[Error]") || line.includes("[SyntaxError]") ? (
                         <span className="text-red-400">{line}</span>
                       ) : (
                         <span>{line}</span>
@@ -728,7 +754,7 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
                     </div>
                   ))}
                   <form onSubmit={handleTerminalSubmit} className="flex items-center gap-1 mt-1">
-                    <span className="text-[#8c909f]">user@codemesh:~/project$</span>
+                    <span className="text-[#8c909f]">user@codemesh:~/{roomId}$</span>
                     <input
                       type="text"
                       value={terminalInput}
@@ -779,7 +805,7 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
             {/* AI Quick Prompts */}
             <div className="p-2.5 border-b border-[#424754]/40 bg-[#1c1b1b] flex flex-wrap gap-1.5">
               <button
-                onClick={() => handleSendPromptText(`Explain the code in ${activeFile.name}`)}
+                onClick={() => handleSendPromptText(`Explain the architecture and functions in ${activeFile.name}`)}
                 className="text-[10px] font-code bg-[#2a2a2a] hover:bg-[#353534] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#424754]"
               >
                 Explain Code
@@ -791,7 +817,7 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
                 Optimize
               </button>
               <button
-                onClick={() => handleSendPromptText(`Write unit tests for ${activeFile.name}`)}
+                onClick={() => handleSendPromptText(`Write comprehensive unit tests for ${activeFile.name}`)}
                 className="text-[10px] font-code bg-[#2a2a2a] hover:bg-[#353534] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#424754]"
               >
                 Generate Tests
@@ -801,7 +827,7 @@ export default function WorkspaceIDE({ roomId = "Beta-Omega-9" }: WorkspaceIDEPr
             {/* Chat History */}
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
               <div className="bg-[#201f1f] text-[#c2c6d6] p-2.5 rounded border border-[#424754]/50 text-xs">
-                Context aware of <span className="font-code text-[#adc6ff]">{activeFile.name}</span>. RAG indexed {files.length} files in workspace.
+                Context aware of <span className="font-code text-[#adc6ff]">{activeFile.name}</span>. RAG indexed {files.length} files in room.
               </div>
 
               {aiChat.map((msg, idx) => (
