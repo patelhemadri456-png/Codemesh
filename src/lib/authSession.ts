@@ -3,6 +3,8 @@ export interface UserSession {
   handle: string;
   email: string;
   avatarColor: string;
+  avatarUrl?: string;
+  provider?: "google" | "github" | "email";
   initials: string;
   isLoggedIn: boolean;
   createdAt: string;
@@ -15,6 +17,7 @@ const defaultGuestUser: UserSession = {
   handle: "engineer",
   email: "engineer@company.com",
   avatarColor: "#4d8eff",
+  provider: "email",
   initials: "YOU",
   isLoggedIn: false,
   createdAt: new Date().toISOString(),
