@@ -1,7 +1,10 @@
 export default function Home() {
   return (
-    <main>
-      <div>Hello world!</div>
+    <main className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-8">
+      <h1 className="text-4xl font-bold mb-4">CodeMesh</h1>
+      <p className="text-lg text-gray-600 dark:text-gray-400">
+        Build together. Code in sync.
+      </p>
     </main>
   );
 }
