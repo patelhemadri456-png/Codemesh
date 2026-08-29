@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Navbar from "./Navbar";
-import { WorkspaceFile, RoomMember, AIChatMessage } from "@/types/workspace";
+import { WorkspaceFile, RoomMember } from "@/types/workspace";
 import { getRoomFiles, saveRoomFiles } from "@/lib/roomStorage";
 import { executeCodeInBrowser } from "@/lib/codeRunner";
 import { getUserSession, UserSession } from "@/lib/authSession";
@@ -31,9 +31,8 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   const [activeFileId, setActiveFileId] = useState<string>("f1");
   const [openTabIds, setOpenTabIds] = useState<string[]>(["f1"]);
   const [activeTabPanel, setActiveTabPanel] = useState<"terminal" | "output" | "problems">("terminal");
-  const [activeActivity, setActiveActivity] = useState<"explorer" | "search" | "git" | "run" | "ai">("explorer");
-  const [showAIPanel, setShowAIPanel] = useState(true);
-  const [rightPanelTab, setRightPanelTab] = useState<"ai" | "team">("ai");
+  const [activeActivity, setActiveActivity] = useState<"explorer" | "search" | "git" | "run">("explorer");
+  const [showChatPanel, setShowChatPanel] = useState(true);
   const [editorNotice, setEditorNotice] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
   const [user, setUser] = useState<UserSession | null>(null);
@@ -49,7 +48,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   const [commitMessage, setCommitMessage] = useState("");
   const [gitHistory, setGitHistory] = useState<string[]>([
     "commit 9923490 - Initial project setup",
-    "commit 00788fe - Monaco IDE & Gemini RAG integration",
+    "commit 00788fe - Monaco IDE & real-time collaboration",
   ]);
 
   // New File State
@@ -60,12 +59,6 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
   const [terminalInput, setTerminalInput] = useState("");
   const terminalEndRef = useRef<HTMLDivElement>(null);
-
-  // AI Assistant State
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [isAILoading, setIsAILoading] = useState(false);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [aiChat, setAiChat] = useState<AIChatMessage[]>([]);
 
   // Load initial dynamic files per room
   useEffect(() => {
@@ -83,18 +76,8 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
     setTerminalHistory([
       `user@codemesh:~/${roomId}$ # Workspace initialized`,
       `[CodeMesh Container] Active room: ${roomId}`,
-      `[RAG Engine] pgvector indexed ${initialFiles.length} project files.`,
       `Type 'run' or 'python <file>' to execute code. Type 'help' for commands.`,
       `user@codemesh:~/${roomId}$ `,
-    ]);
-
-    setAiChat([
-      {
-        id: "c_init",
-        role: "assistant",
-        text: `Hello! I'm CodeMesh AI. I have indexed ${initialFiles.length} files in room "${roomId}". Ask me to explain, optimize, or write code!`,
-        timestamp: "Just now",
-      },
     ]);
   }, [roomId]);
 
@@ -311,10 +294,6 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
           `[Exit code: ${result.hasError ? 1 : 0} in ${result.durationMs}ms]`
         );
       }
-    } else if (cmd.startsWith("ai ")) {
-      const prompt = cmd.replace("ai ", "");
-      newLogs.push(`[Gemini RAG] Query received: "${prompt}"`, `Indexing codebase context...`);
-      handleSendPromptText(prompt);
     } else if (cmd === "share") {
       navigator.clipboard.writeText(window.location.href);
       newLogs.push(`[Share] Workspace invite link copied to clipboard!`);
@@ -325,68 +304,6 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
 
     newLogs.push(`user@codemesh:~/${roomId}$ `);
     setTerminalHistory((prev) => [...prev, ...newLogs]);
-  };
-
-  // AI Prompt Handling
-  const handleSendPromptText = async (promptText: string) => {
-    if (!promptText.trim() || isAILoading || !activeFile) return;
-
-    const userMessage: AIChatMessage = {
-      id: "u_" + Date.now(),
-      role: "user",
-      text: promptText,
-      timestamp: "Just now",
-    };
-
-    setAiChat((prev) => [...prev, userMessage]);
-    setAiPrompt("");
-    setIsAILoading(true);
-
-    try {
-      const res = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: promptText,
-          codeContext: activeFile.content,
-          activeFile: activeFile.name,
-          allFiles: files.map((f) => ({ name: f.name, content: f.content })),
-        }),
-      });
-
-      const data = await res.json();
-      const assistantMessage: AIChatMessage = {
-        id: "a_" + Date.now(),
-        role: "assistant",
-        text: data.text || "Here is the recommended code implementation:",
-        codeSnippet: data.codeSnippet,
-        timestamp: "Just now",
-      };
-
-      setAiChat((prev) => [...prev, assistantMessage]);
-    } catch (err) {
-      console.error(err);
-      setAiChat((prev) => [
-        ...prev,
-        {
-          id: "a_" + Date.now(),
-          role: "assistant",
-          text: `Context aware of ${activeFile.name}. Here is the dynamic solution:`,
-          codeSnippet: `// Optimized for ${roomId}\nconsole.log("CodeMesh stream operational");`,
-          timestamp: "Just now",
-        },
-      ]);
-    } finally {
-      setIsAILoading(false);
-    }
-  };
-
-  const handleApplySnippet = (snippet: string) => {
-    if (!activeFile) return;
-    const newContent = `${activeFile.content}\n\n# Applied from CodeMesh AI:\n${snippet}\n`;
-    handleEditorChange(newContent);
-    setEditorNotice(`Appended AI patch to ${activeFile.name}!`);
-    setTimeout(() => setEditorNotice(null), 3000);
   };
 
   const handleExportWorkspace = () => {
@@ -478,15 +395,15 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
             </button>
 
             <button
-              onClick={() => setShowAIPanel(!showAIPanel)}
+              onClick={() => setShowChatPanel(!showChatPanel)}
               className={`w-full flex justify-center py-2.5 transition-colors ${
-                showAIPanel
-                  ? "border-l-2 border-[#d0bcff] bg-[#571bc1]/20 text-[#d0bcff]"
-                  : "text-[#d0bcff]/70 hover:bg-[#201f1f]"
+                showChatPanel
+                  ? "border-l-2 border-[#adc6ff] bg-[#adc6ff]/20 text-[#adc6ff]"
+                  : "text-[#8c909f] hover:text-[#e5e2e1] hover:bg-[#201f1f]"
               }`}
-              title="Toggle AI Assistant"
+              title="Toggle Team Chat"
             >
-              <span className="material-symbols-outlined text-[19px]">auto_awesome</span>
+              <span className="material-symbols-outlined text-[19px]">forum</span>
             </button>
           </div>
 
@@ -916,189 +833,47 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
           </div>
         </div>
 
-        {/* Right Drawer (AI Assistant / Team Discussion) */}
-        {showAIPanel && (
+        {/* Right Drawer (Team Discussion Chat) */}
+        {showChatPanel && (
           <div className="w-80 md:w-96 bg-[#181818] border-l border-[#2d2d2d] flex flex-col shrink-0">
-            {/* Tab Switcher Header */}
-            <div className="border-b border-[#2d2d2d] flex items-center justify-between bg-[#121212] px-2">
-              <div className="flex">
-                <button
-                  onClick={() => setRightPanelTab("ai")}
-                  className={`px-3 py-2.5 font-code text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors ${
-                    rightPanelTab === "ai"
-                      ? "border-[#d0bcff] text-[#d0bcff] bg-[#181818]"
-                      : "border-transparent text-[#8c909f] hover:text-[#e5e2e1]"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-                  <span>AI Assistant</span>
-                </button>
-                <button
-                  onClick={() => setRightPanelTab("team")}
-                  className={`px-3 py-2.5 font-code text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors ${
-                    rightPanelTab === "team"
-                      ? "border-[#adc6ff] text-[#adc6ff] bg-[#181818]"
-                      : "border-transparent text-[#8c909f] hover:text-[#e5e2e1]"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[16px]">forum</span>
-                  <span>Team Chat</span>
-                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                </button>
+            {/* Team Chat Header */}
+            <div className="border-b border-[#2d2d2d] flex items-center justify-between bg-[#121212] px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[17px] text-[#adc6ff]">forum</span>
+                <span className="font-code text-xs font-semibold text-[#e5e2e1]">Team Discussion</span>
+                <span className="flex items-center gap-1 text-[10px] text-green-400 bg-green-950/40 border border-green-800/40 px-1.5 py-0.5 rounded font-code">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                  Live
+                </span>
               </div>
 
               <button
-                onClick={() => setShowAIPanel(false)}
-                className="text-[#8c909f] hover:text-[#e5e2e1] p-1"
-                title="Collapse right panel"
+                onClick={() => setShowChatPanel(false)}
+                className="text-[#8c909f] hover:text-[#e5e2e1] p-1 transition-colors"
+                title="Collapse Chat"
               >
                 <span className="material-symbols-outlined text-[16px]">close</span>
               </button>
             </div>
 
-            {/* Render Team Discussion Chat */}
-            {rightPanelTab === "team" && (
-              <TeamDiscussionChat
-                roomId={roomId}
-                activeFileName={activeFile?.name}
-                activeCodeSelection={activeFile?.content}
-                members={members}
-                onOpenCodeRef={(fileName) => {
-                  const target = files.find((f) => f.name === fileName);
-                  if (target) {
-                    setActiveFileId(target.id);
-                    if (!openTabIds.includes(target.id)) {
-                      setOpenTabIds([...openTabIds, target.id]);
-                    }
+            {/* Team Discussion Component */}
+            <TeamDiscussionChat
+              roomId={roomId}
+              activeFileName={activeFile?.name}
+              activeCodeSelection={activeFile?.content}
+              members={members}
+              onOpenCodeRef={(fileName) => {
+                const target = files.find((f) => f.name === fileName);
+                if (target) {
+                  setActiveFileId(target.id);
+                  if (!openTabIds.includes(target.id)) {
+                    setOpenTabIds([...openTabIds, target.id]);
                   }
-                }}
-              />
-            )}
-
-            {/* Render AI Assistant */}
-            {rightPanelTab === "ai" && (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Quick Prompts */}
-                <div className="p-2.5 border-b border-[#2d2d2d] bg-[#1c1b1b] flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => handleSendPromptText(`Explain the architecture and functions in ${activeFile?.name}`)}
-                    className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
-                  >
-                    Explain Code
-                  </button>
-                  <button
-                    onClick={() => handleSendPromptText(`Optimize performance and concurrency in ${activeFile?.name}`)}
-                    className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
-                  >
-                    Optimize
-                  </button>
-                  <button
-                    onClick={() => handleSendPromptText(`Write comprehensive unit tests for ${activeFile?.name}`)}
-                    className="text-[10px] font-code bg-[#201f1f] hover:bg-[#2a2a2a] text-[#c2c6d6] px-2 py-0.5 rounded border border-[#2d2d2d]"
-                  >
-                    Generate Tests
-                  </button>
-                </div>
-
-            {/* Chat History */}
-            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-              <div className="bg-[#201f1f] text-[#c2c6d6] p-2.5 rounded border border-[#2d2d2d] text-xs font-code">
-                Context aware of <span className="text-[#adc6ff] font-bold">{activeFile?.name}</span>. RAG indexed {files.length} files in room.
-              </div>
-
-              {aiChat.map((msg, idx) => (
-                <div
-                  key={msg.id || idx}
-                  className={`flex flex-col gap-1.5 ${
-                    msg.role === "user" ? "items-end" : "items-start"
-                  }`}
-                >
-                  <div
-                    className={`p-3 rounded-lg text-xs leading-relaxed max-w-[95%] ${
-                      msg.role === "user"
-                        ? "bg-[#201f1f] text-[#e5e2e1] border border-[#2d2d2d]"
-                        : "bg-[#121212] text-[#e5e2e1] border-l-2 border-[#d0bcff] shadow-[0_0_10px_rgba(208,188,255,0.05)]"
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
-                    {msg.codeSnippet && (
-                      <div className="bg-[#0a0a0a] rounded border border-[#2d2d2d] p-2 mt-2 font-code text-[11px] overflow-x-auto whitespace-pre">
-                        <code>{msg.codeSnippet}</code>
-                      </div>
-                    )}
-                    {msg.codeSnippet && (
-                      <div className="mt-2.5 flex gap-2">
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(msg.codeSnippet || "");
-                            setCopiedIndex(idx);
-                            setTimeout(() => setCopiedIndex(null), 2000);
-                          }}
-                          className="flex items-center gap-1 text-[11px] border border-[#2d2d2d] px-2 py-1 rounded hover:bg-[#201f1f] transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[13px]">
-                            {copiedIndex === idx ? "check" : "content_copy"}
-                          </span>
-                          {copiedIndex === idx ? "Copied" : "Copy"}
-                        </button>
-                        <button
-                          onClick={() => handleApplySnippet(msg.codeSnippet!)}
-                          className="flex items-center gap-1 text-[11px] border border-[#d0bcff] text-[#d0bcff] px-2 py-1 rounded hover:bg-[#571bc1]/20 transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[13px]">
-                            bolt
-                          </span>
-                          Apply to Editor
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {isAILoading && (
-                <div className="bg-[#121212] text-[#adc6ff] p-3 rounded-lg border-l-2 border-[#d0bcff] text-xs flex items-center gap-2 font-code">
-                  <span className="w-2 h-2 rounded-full bg-[#d0bcff] animate-ping" />
-                  Generating Gemini RAG response...
-                </div>
-              )}
-            </div>
-
-            {/* AI Prompt Input */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendPromptText(aiPrompt);
+                }
               }}
-              className="p-3 border-t border-[#2d2d2d] bg-[#121212]"
-            >
-              <div className="bg-[#131313] border border-[#2d2d2d] rounded focus-within:border-[#d0bcff] flex items-end p-2 transition-colors">
-                <textarea
-                  className="w-full bg-transparent border-none text-[#e5e2e1] text-xs placeholder-[#8c909f] resize-none focus:outline-none p-1 font-body"
-                  placeholder="Ask about your code or architecture..."
-                  rows={2}
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendPromptText(aiPrompt);
-                    }
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={!aiPrompt.trim() || isAILoading}
-                  className="p-1 rounded text-[#d0bcff] hover:bg-[#201f1f] disabled:opacity-40 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[18px]">send</span>
-                </button>
-              </div>
-            </form>
+            />
           </div>
         )}
-      </div>
-    )}
       </div>
 
       {showSettingsModal && (
