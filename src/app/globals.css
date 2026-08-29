@@ -2,155 +2,73 @@
 
 @layer base {
   :root {
-    --background: #0d0d0e;
+    --background: #0a0a0f;
     --foreground: #ededed;
-    --surface-dim: #0a0a0b;
-    --surface-container-lowest: #080809;
-    --surface-container-low: #111113;
-    --surface-container: #17171a;
-    --surface-container-high: #1e1e23;
-    --surface-container-highest: #28282e;
-    --surface-variant: #2e2e36;
-    --surface-bright: #383842;
-
+    --surface-dim: #08080c;
+    --surface-container: #111118;
     --primary: #adc6ff;
-    --primary-container: #4d8eff;
-    --primary-fixed: #d8e2ff;
-    --primary-fixed-dim: #adc6ff;
-    --on-primary: #002e6a;
-    --on-primary-container: #00285d;
-
     --secondary: #d0bcff;
-    --secondary-container: #571bc1;
-    --on-secondary-container: #c4abff;
-
     --tertiary: #ffb786;
-    --tertiary-container: #df7412;
-    --on-tertiary: #502400;
-
-    --outline: #727685;
-    --outline-variant: #2c2d35;
-
-    --on-surface: #ededed;
-    --on-surface-variant: #b0b4c3;
   }
 }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #0d0d0e;
+  background-color: #0a0a0f;
   color: #ededed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 .font-headline {
-  font-family: 'Geist', sans-serif;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .font-code {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-/* Luminous Dark.design Aurora Mesh Backgrounds */
-.bg-grid-pattern {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 32px 32px;
+/* Shifting Animated Gradient Mesh Background */
+.gradient-mesh-bg {
+  background: 
+    radial-gradient(at 0% 0%, rgba(138, 43, 226, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 20%, rgba(255, 183, 134, 0.10) 0px, transparent 50%),
+    radial-gradient(at 20% 60%, rgba(87, 27, 193, 0.10) 0px, transparent 50%),
+    radial-gradient(at 80% 80%, rgba(208, 188, 255, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(255, 140, 66, 0.08) 0px, transparent 50%);
 }
 
-.bg-radial-glow {
-  background: radial-gradient(circle at 50% 0%, rgba(77, 142, 255, 0.15) 0%, rgba(208, 188, 255, 0.05) 45%, transparent 70%);
+/* Subtle Film Grain Noise Overlay */
+.noise-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
 }
 
-.aurora-glow-primary {
-  background: radial-gradient(circle, rgba(77, 142, 255, 0.18) 0%, rgba(13, 13, 14, 0) 70%);
+/* Infinite Marquee Keyframes */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }
 
-.aurora-glow-secondary {
-  background: radial-gradient(circle, rgba(208, 188, 255, 0.15) 0%, rgba(13, 13, 14, 0) 70%);
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
 }
 
-.aurora-glow-tertiary {
-  background: radial-gradient(circle, rgba(255, 183, 134, 0.12) 0%, rgba(13, 13, 14, 0) 70%);
+.animate-marquee:hover {
+  animation-play-state: paused;
 }
 
-/* Glassmorphism & Precision Panels */
-.glass-panel-dark {
-  background: rgba(18, 18, 22, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.animate-marquee-reverse {
+  display: flex;
+  width: max-content;
+  animation: marquee 42s linear infinite reverse;
 }
 
-.glass-panel-elevated {
-  background: rgba(24, 24, 30, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+.animate-marquee-reverse:hover {
+  animation-play-state: paused;
 }
-
-.glow-card {
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.glow-card:hover {
-  border-color: rgba(173, 198, 255, 0.4);
-  box-shadow: 0 0 30px rgba(77, 142, 255, 0.12);
-}
-
-/* Metallic Bevel Pill Buttons */
-.pill-metallic {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-.pill-metallic:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Gradient Text Mask */
-.text-gradient-hero {
-  background: linear-gradient(180deg, #ffffff 0%, #e2e4ec 50%, #9ca1b3 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.text-gradient-accent {
-  background: linear-gradient(135deg, #adc6ff 0%, #d0bcff 50%, #ffb786 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* Animations */
-@keyframes pulseGlow {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.05); }
-}
-
-.animate-pulse-glow {
-  animation: pulseGlow 5s ease-in-out infinite;
-}
-
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
-  100% { transform: translateY(0px); }
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-/* Syntax Highlighting */
-.syntax-keyword { color: #d0bcff; font-weight: 600; }
-.syntax-function { color: #adc6ff; }
-.syntax-string { color: #ffb786; }
-.syntax-comment { color: #727685; font-style: italic; }
-.syntax-type { color: #4d8eff; }
 
 /* Custom Thin Scrollbar */
 ::-webkit-scrollbar {
@@ -159,14 +77,14 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #080809;
+  background: #08080c;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #28282e;
-  border-radius: 2px;
+  background: #242233;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #383842;
+  background: #3e3a59;
 }
