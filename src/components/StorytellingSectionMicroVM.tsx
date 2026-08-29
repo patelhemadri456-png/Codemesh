@@ -36,57 +36,54 @@ if __name__ == "__main__":
         `✓ [Benchmark completed with 0ms memory contention in ${result.durationMs}ms]`,
       ]);
       setIsExecuting(false);
-      confetti({ particleCount: 30, spread: 40, origin: { y: 0.75 } });
+      confetti({ particleCount: 30, spread: 40, origin: { y: 0.75 }, colors: ["#10B981", "#FF7E33", "#ffffff"] });
     }, 280);
   };
 
   return (
     <section className="py-24 sm:py-32 px-4 max-w-6xl mx-auto relative z-10">
       
-      {/* Background Ambient Violet Glow */}
-      <div className="absolute top-1/2 -left-32 -translate-y-1/2 w-[450px] h-[450px] bg-[#8a2be2]/08 blur-[160px] rounded-full pointer-events-none -z-10" />
-
-      {/* Asymmetric Alternating Grid: Left Narrative, Right Live Sandbox Visual */}
+      {/* Asymmetric Grid: Left Narrative, Right Live Sandbox Visual */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
         
         {/* Left Column: Narrative (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1b2533] border border-[#2f4d70] text-xs font-code text-[#adc6ff]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#adc6ff] animate-ping" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/25 text-xs font-code text-[#10B981] font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-ping" />
             <span>03 / MICROVM COMPUTE</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#f4f2f0] tracking-tight leading-[1.12]">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-[1.12]">
             &lt; 150ms spin-up.{" "}
-            <span className="bg-gradient-to-r from-[#adc6ff] to-[#ffb786] bg-clip-text text-transparent">
+            <span className="font-serif-editorial italic font-normal text-white">
               Instant hardware execution.
             </span>
           </h2>
 
-          <p className="text-sm sm:text-base text-[#9b98ab] leading-relaxed font-body">
+          <p className="text-sm sm:text-base text-neutral-400 leading-relaxed font-body">
             Skip 15-minute Docker builds and local environment rot. CodeMesh provisions ephemeral Firecracker MicroVM containers instantly, giving every collaborator an isolated runtime with zero setup.
           </p>
 
           <div className="space-y-3 pt-2 font-body text-xs sm:text-sm">
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-[#13121d] border border-[#262438] hover:border-[#4d486e] transition-colors">
-              <span className="material-symbols-outlined text-[#adc6ff] text-[18px] mt-0.5">
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-[#10B981]/30 transition-colors">
+              <span className="material-symbols-outlined text-[#10B981] text-[18px] mt-0.5">
                 security
               </span>
               <div>
-                <div className="font-semibold text-[#e5e2e1]">eBPF Sandboxed Isolation</div>
-                <div className="text-[#7e7b90] text-xs font-code">
+                <div className="font-semibold text-white">eBPF Sandboxed Isolation</div>
+                <div className="text-neutral-500 text-xs font-code">
                   Hardened virtualization boundary prevents cross-room memory leakage.
                 </div>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-[#13121d] border border-[#262438] hover:border-[#4d486e] transition-colors">
-              <span className="material-symbols-outlined text-[#ffb786] text-[18px] mt-0.5">
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-[#10B981]/30 transition-colors">
+              <span className="material-symbols-outlined text-[#FF7E33] text-[18px] mt-0.5">
                 speed
               </span>
               <div>
-                <div className="font-semibold text-[#e5e2e1]">Zero-Cold-Start Cache</div>
-                <div className="text-[#7e7b90] text-xs font-code">
+                <div className="font-semibold text-white">Zero-Cold-Start Cache</div>
+                <div className="text-neutral-500 text-xs font-code">
                   Pre-warmed compiler daemon ready to execute in sub-millisecond bursts.
                 </div>
               </div>
@@ -96,23 +93,23 @@ if __name__ == "__main__":
 
         {/* Right Column: Interactive Live Sandbox Terminal (7 cols) */}
         <div className="lg:col-span-7">
-          <div className="rounded-2xl border border-[#2f2d42] bg-[#0e0d16]/95 backdrop-blur-2xl shadow-[0_20px_70px_rgba(0,0,0,0.8)] overflow-hidden">
+          <div className="rounded-2xl border border-white/15 bg-[#050505]/95 backdrop-blur-2xl shadow-[0_20px_70px_rgba(0,0,0,0.8)] overflow-hidden">
             
             {/* Window Header */}
-            <div className="px-4 py-3 border-b border-[#212030] bg-[#0a0910] flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-white/10 bg-[#000000] flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]/70"></span>
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]/70"></span>
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]/70"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]/80"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]/80"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]/80"></span>
                 </div>
-                <span className="text-xs font-code text-[#8e8a9f]">microvm_runner.py</span>
+                <span className="text-xs font-code text-neutral-400">microvm_runner.py</span>
               </div>
 
               <button
                 onClick={handleRun}
                 disabled={isExecuting}
-                className="px-3 py-1 rounded bg-gradient-to-r from-[#adc6ff] to-[#ffb786] text-[#0a0a0f] text-xs font-code font-bold hover:shadow-[0_0_15px_rgba(173,198,255,0.4)] transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                className="px-3 py-1 rounded bg-[#10B981] text-black font-bold text-xs font-code hover:bg-[#059669] transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow"
               >
                 <span className="material-symbols-outlined text-[14px]">
                   {isExecuting ? "hourglass_empty" : "play_arrow"}
@@ -122,25 +119,25 @@ if __name__ == "__main__":
             </div>
 
             {/* Editable Sandbox Code Area */}
-            <div className="p-4 bg-[#08070d] font-code text-xs text-[#d4d1e2] leading-relaxed">
+            <div className="p-4 bg-[#000000] font-code text-xs text-neutral-300 leading-relaxed">
               <textarea
                 value={activeCode}
                 onChange={(e) => setActiveCode(e.target.value)}
-                className="w-full h-32 bg-transparent resize-none focus:outline-none font-code text-xs text-[#c2bed4] border-none"
+                className="w-full h-32 bg-transparent resize-none focus:outline-none font-code text-xs text-neutral-300 border-none"
                 spellCheck={false}
               />
             </div>
 
             {/* MicroVM Output Console */}
-            <div className="p-3.5 bg-[#050508] border-t border-[#1e1c2b] font-code text-[11px] space-y-1">
-              <div className="flex items-center justify-between text-[#68657d] mb-1">
-                <span className="flex items-center gap-1.5 text-[#adc6ff]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#adc6ff] animate-pulse"></span>
+            <div className="p-3.5 bg-[#000000] border-t border-white/10 font-code text-[11px] space-y-1">
+              <div className="flex items-center justify-between text-neutral-400 mb-1">
+                <span className="flex items-center gap-1.5 text-[#10B981]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse"></span>
                   EPHEMERAL CONTAINER LOGS
                 </span>
-                <span className="text-green-400">124ms Boot Time</span>
+                <span className="text-[#10B981] font-semibold">124ms Boot Time</span>
               </div>
-              <div className="space-y-1 text-[#938fa6] max-h-24 overflow-y-auto">
+              <div className="space-y-1 text-neutral-400 max-h-24 overflow-y-auto">
                 {outputLogs.map((log, idx) => (
                   <div key={idx} className="leading-tight">
                     {log}

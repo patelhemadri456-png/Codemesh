@@ -40,25 +40,25 @@ export default function ThreeRecurringMotif({
     const group = new THREE.Group();
     scene.add(group);
 
-    // 1. Signature Motif: Nested Gyroscopic Torus Rings & Icosahedron Wireframe Core
-    const outerRingGeo = new THREE.TorusGeometry(variant === "cta" ? 7.8 : 6.8, 0.28, 24, 80);
+    // Pure Monochrome Silver/White Nested Torus & Icosahedron Wireframe
+    const outerRingGeo = new THREE.TorusGeometry(variant === "cta" ? 7.8 : 6.8, 0.22, 24, 80);
     const outerRingMat = new THREE.MeshStandardMaterial({
-      color: 0x8a2be2,
-      emissive: 0x4a108a,
+      color: 0xffffff,
+      emissive: 0x333333,
       wireframe: true,
       transparent: true,
-      opacity: variant === "cta" ? 0.45 : 0.32,
+      opacity: variant === "cta" ? 0.35 : 0.25,
     });
     const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
     group.add(outerRing);
 
-    const midRingGeo = new THREE.TorusGeometry(variant === "cta" ? 5.8 : 5.0, 0.22, 20, 60);
+    const midRingGeo = new THREE.TorusGeometry(variant === "cta" ? 5.8 : 5.0, 0.18, 20, 60);
     const midRingMat = new THREE.MeshStandardMaterial({
-      color: 0xffb786,
-      emissive: 0x883300,
+      color: 0xd4d4d8,
+      emissive: 0x27272a,
       wireframe: true,
       transparent: true,
-      opacity: variant === "cta" ? 0.5 : 0.35,
+      opacity: variant === "cta" ? 0.4 : 0.3,
     });
     const midRing = new THREE.Mesh(midRingGeo, midRingMat);
     midRing.rotation.x = Math.PI / 3;
@@ -66,28 +66,23 @@ export default function ThreeRecurringMotif({
 
     const coreGeo = new THREE.IcosahedronGeometry(variant === "cta" ? 3.6 : 3.0, 1);
     const coreMat = new THREE.MeshStandardMaterial({
-      color: 0xd0bcff,
-      emissive: 0x5b21b6,
+      color: 0xffffff,
+      emissive: 0x52525b,
       wireframe: true,
       transparent: true,
-      opacity: variant === "cta" ? 0.6 : 0.4,
+      opacity: variant === "cta" ? 0.5 : 0.35,
     });
     const core = new THREE.Mesh(coreGeo, coreMat);
     group.add(core);
 
-    // 2. Point Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Monochrome Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
-    const purpleLight = new THREE.PointLight(0xd0bcff, 3, 50);
-    purpleLight.position.set(12, 10, 10);
-    scene.add(purpleLight);
+    const whiteLight = new THREE.PointLight(0xffffff, 3, 50);
+    whiteLight.position.set(12, 10, 10);
+    scene.add(whiteLight);
 
-    const orangeLight = new THREE.PointLight(0xffb786, 3, 50);
-    orangeLight.position.set(-12, -8, 10);
-    scene.add(orangeLight);
-
-    // 3. Scroll Parallax & Mouse Interactivity
     let scrollY = 0;
     const handleScroll = () => {
       scrollY = window.scrollY || window.pageYOffset;
@@ -120,7 +115,6 @@ export default function ThreeRecurringMotif({
       animationFrameId = requestAnimationFrame(animate);
       const elapsed = (currentTime - startTime) * 0.001;
 
-      // Scroll Parallax rotation & translation
       const scrollFactor = scrollY * 0.0008;
 
       group.rotation.x = elapsed * 0.15 + mouseY + scrollFactor;

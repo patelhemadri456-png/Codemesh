@@ -1,18 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import Hero3DCanvas from "@/components/Hero3DCanvas";
-import HeroHeadline from "@/components/HeroHeadline";
+import FramerNavbar from "@/components/FramerNavbar";
+import FramerExactHero from "@/components/FramerExactHero";
 import LogoMarquee from "@/components/LogoMarquee";
+import FramerDesignScreens from "@/components/FramerDesignScreens";
+import FramerBentoGrid from "@/components/FramerBentoGrid";
 import StorytellingSectionAST from "@/components/StorytellingSectionAST";
 import StorytellingSectionRAG from "@/components/StorytellingSectionRAG";
 import StorytellingSectionMicroVM from "@/components/StorytellingSectionMicroVM";
-import ScrollComparisonTable from "@/components/ScrollComparisonTable";
 import InteractiveStatsBar from "@/components/InteractiveStatsBar";
-import SocialProofMarquee from "@/components/SocialProofMarquee";
+import ScrollComparisonTable from "@/components/ScrollComparisonTable";
+import FramerTestimonialWall from "@/components/FramerTestimonialWall";
 import FullBleedFinalCTA from "@/components/FullBleedFinalCTA";
+import Footer from "@/components/Footer";
 import TechnicalBriefModal from "@/components/TechnicalBriefModal";
 import DemoVideoModal from "@/components/DemoVideoModal";
 import ContactSalesModal from "@/components/ContactSalesModal";
@@ -36,40 +37,46 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-[#e5e2e1] font-body selection:bg-[#571bc1]/40 selection:text-[#f4f2f0] relative overflow-x-hidden gradient-mesh-bg noise-overlay">
+    <div className="min-h-screen bg-[#000000] text-white font-body selection:bg-white/20 selection:text-white relative overflow-x-hidden monochrome-mesh-bg noise-overlay">
       
-      {/* Navbar */}
-      <Navbar variant="landing" />
+      {/* Framer-Style Floating Island Pill Nav (Pure Black & White) */}
+      <FramerNavbar
+        onOpenBrief={() => setShowBriefModal(true)}
+        onOpenSales={() => setShowSalesModal(true)}
+      />
 
-      {/* Hero Section with 3D Parallax Canvas & Word-by-Word Reveal */}
-      <section className="relative min-h-[90vh] flex flex-col justify-center items-center pt-24 pb-12 overflow-hidden">
-        <Hero3DCanvas />
-        <HeroHeadline
-          onOpenDemo={() => setShowDemoModal(true)}
-          onOpenBrief={() => setShowBriefModal(true)}
-        />
-      </section>
+      {/* Framer-Style AI Prompt/Studio Canvas Hero with 3D WebGL Effects */}
+      <FramerExactHero
+        onOpenDemo={() => setShowDemoModal(true)}
+        onOpenBrief={() => setShowBriefModal(true)}
+      />
 
       {/* Cloud Partner Logo Marquee Strip */}
       <LogoMarquee />
 
-      {/* Storytelling Feature 1: Sub-10ms OT Synchronization (Asymmetric Left-Right) */}
+      {/* Exact Framer Interactive Feature Screens */}
+      <FramerDesignScreens />
+
+      {/* Framer-Style Interactive Bento Feature Grid */}
+      <FramerBentoGrid />
+
+      {/* Feature Story 01: Sub-10ms OT Synchronization */}
       <StorytellingSectionAST />
 
-      {/* Storytelling Feature 2: pgvector RAG Repository Memory (Asymmetric Right-Left) */}
+      {/* Feature Story 02: pgvector RAG Repository Memory */}
       <StorytellingSectionRAG />
 
-      {/* Storytelling Feature 3: Ephemeral MicroVM Isolated Runtimes (Asymmetric Left-Right) */}
+      {/* Feature Story 03: Ephemeral MicroVM Isolated Runtimes */}
       <StorytellingSectionMicroVM />
 
-      {/* Live Interactive Stats Bar (3D Tilt Cards) */}
+      {/* Interactive 3D Tilt Stats Section */}
       <InteractiveStatsBar />
 
-      {/* Scroll-Animated Architecture Comparison Table */}
+      {/* Architecture Comparison Table */}
       <ScrollComparisonTable />
 
-      {/* Social Proof & Engineer Testimonial Marquee (Railway-Style) */}
-      <SocialProofMarquee />
+      {/* Framer-Style Wall of Love Testimonial Bento */}
+      <FramerTestimonialWall />
 
       {/* Full-Bleed Final CTA with Returning 3D Signature Motif */}
       <FullBleedFinalCTA
@@ -77,10 +84,10 @@ export default function Home() {
         onOpenBrief={() => setShowBriefModal(true)}
       />
 
-      {/* Minimal Developer Footer */}
+      {/* Developer Footer */}
       <Footer />
 
-      {/* Interactive Global Modals */}
+      {/* Interactive Modals */}
       {showBriefModal && (
         <TechnicalBriefModal onClose={() => setShowBriefModal(false)} />
       )}

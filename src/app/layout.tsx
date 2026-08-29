@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CodeMesh - Code at the speed of thought, together.",
+  title: "CodeMesh: AI-powered collaborative cloud IDE",
   description:
-    "A high-performance collaborative environment. Real-time RAG-powered AI, simultaneous multi-user editing, and instant environment spin-up.",
+    "Go from idea to live production runtime with an AI agent that codes and executes in the cloud. Real-time OT synchronization, pgvector RAG memory, and instant MicroVMs.",
 };
 
 export default function RootLayout({
@@ -22,7 +22,7 @@ export default function RootLayout({
           crossOrigin=""
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=Geist:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
         <link
@@ -30,7 +30,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-background text-on-surface font-body antialiased min-h-screen selection:bg-primary-container selection:text-on-primary-container">
+      <body className="bg-[#050508] text-[#ededed] font-body antialiased min-h-screen selection:bg-[#571bc1]/40 selection:text-[#f4f2f0]">
         {children}
       </body>
     </html>

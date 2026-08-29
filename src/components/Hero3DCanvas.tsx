@@ -11,7 +11,6 @@ export default function Hero3DCanvas() {
     const container = containerRef.current;
     if (!container) return;
 
-    // Check WebGL availability
     try {
       const testCanvas = document.createElement("canvas");
       const gl = testCanvas.getContext("webgl") || testCanvas.getContext("experimental-webgl");
@@ -28,12 +27,11 @@ export default function Hero3DCanvas() {
     const width = container.clientWidth || window.innerWidth;
     const height = container.clientHeight || window.innerHeight;
 
-    // Scene, Camera, Renderer
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a0a0f, 0.0018);
+    scene.fog = new THREE.FogExp2(0x000000, 0.0025);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.z = 32;
+    camera.position.set(0, 0, 32);
 
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
@@ -46,84 +44,97 @@ export default function Hero3DCanvas() {
 
     container.appendChild(renderer.domElement);
 
-    // Group for mouse parallax
     const mainGroup = new THREE.Group();
     scene.add(mainGroup);
 
-    // 1. Central 3D Abstract Object: Floating Nested Torus Knot & Wireframe Polyhedron
-    const knotGeometry = new THREE.TorusKnotGeometry(6.2, 1.4, 120, 24, 2, 3);
-    const knotMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8a2be2,
-      emissive: 0x3d007a,
-      roughness: 0.25,
-      metalness: 0.85,
+    // 1. Pure Monochrome Silver/White 3D Wireframe Geometry
+    // Outer Gyroscope Ring
+    const torusGeo1 = new THREE.TorusGeometry(8.5, 0.22, 30, 100);
+    const torusMat1 = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0x333333,
+      roughness: 0.1,
+      metalness: 0.95,
       wireframe: true,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.28,
     });
-    const knotMesh = new THREE.Mesh(knotGeometry, knotMaterial);
-    mainGroup.add(knotMesh);
+    const torus1 = new THREE.Mesh(torusGeo1, torusMat1);
+    torus1.position.set(15, 3, -6);
+    torus1.rotation.x = Math.PI / 3;
+    mainGroup.add(torus1);
 
-    // Inner glowing core
-    const coreGeometry = new THREE.IcosahedronGeometry(3.8, 2);
-    const coreMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffb786,
-      emissive: 0xd9531e,
-      roughness: 0.3,
-      metalness: 0.9,
+    // Inner Floating Polyhedron (Monochrome Silver Wireframe)
+    const icosaGeo1 = new THREE.IcosahedronGeometry(4.0, 1);
+    const icosaMat1 = new THREE.MeshStandardMaterial({
+      color: 0xe4e4e7,
+      emissive: 0x52525b,
       wireframe: true,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.35,
     });
-    const coreMesh = new THREE.Mesh(coreGeometry, coreMaterial);
-    mainGroup.add(coreMesh);
+    const icosa1 = new THREE.Mesh(icosaGeo1, icosaMat1);
+    icosa1.position.set(15, 3, -6);
+    mainGroup.add(icosa1);
 
-    // 2. Dynamic Particle Field / Constellation Lattice
-    const particleCount = 700;
+    // Left Secondary Depth Orbital Ring
+    const torusGeo2 = new THREE.TorusGeometry(7.2, 0.18, 24, 80);
+    const torusMat2 = new THREE.MeshStandardMaterial({
+      color: 0xd4d4d8,
+      emissive: 0x27272a,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.2,
+    });
+    const torus2 = new THREE.Mesh(torusGeo2, torusMat2);
+    torus2.position.set(-16, -4, -8);
+    torus2.rotation.y = Math.PI / 4;
+    mainGroup.add(torus2);
+
+    // 2. Subtle Monochrome Silver Particle Field
+    const particleCount = 450;
     const particleGeometry = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
-    const particleScales = new Float32Array(particleCount);
 
     for (let i = 0; i < particleCount * 3; i += 3) {
-      particlePositions[i] = (Math.random() - 0.5) * 80;
-      particlePositions[i + 1] = (Math.random() - 0.5) * 60;
-      particlePositions[i + 2] = (Math.random() - 0.5) * 40 - 5;
-      particleScales[i / 3] = Math.random() * 1.5 + 0.5;
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 12 + Math.random() * 26;
+      particlePositions[i] = Math.cos(angle) * radius;
+      particlePositions[i + 1] = Math.sin(angle) * radius * 0.65;
+      particlePositions[i + 2] = (Math.random() - 0.5) * 20 - 4;
     }
 
     particleGeometry.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
-    particleGeometry.setAttribute("scale", new THREE.BufferAttribute(particleScales, 1));
 
-    // Particle Material
     const particleMaterial = new THREE.PointsMaterial({
-      size: 0.22,
-      color: 0xd0bcff,
+      size: 0.16,
+      color: 0xffffff,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.4,
       blending: THREE.AdditiveBlending,
     });
     const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
     mainGroup.add(particleSystem);
 
-    // 3. Ground Wireframe Grid with subtle perspective wave
-    const gridHelper = new THREE.GridHelper(100, 40, 0x571bc1, 0x1f1f2e);
+    // 3. Subtle Horizon Floor Grid (Monochrome)
+    const gridHelper = new THREE.GridHelper(100, 40, 0x52525b, 0x18181b);
     gridHelper.position.y = -14;
-    gridHelper.position.z = -5;
+    gridHelper.position.z = -6;
     mainGroup.add(gridHelper);
 
-    // 4. Lights: Cinematic Purple & Peach / Orange Point Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    // 4. Monochrome Crisp White Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
-    const purpleLight = new THREE.PointLight(0xd0bcff, 3, 50);
-    purpleLight.position.set(15, 12, 10);
-    scene.add(purpleLight);
+    const whiteLight1 = new THREE.PointLight(0xffffff, 3.0, 60);
+    whiteLight1.position.set(16, 8, 12);
+    scene.add(whiteLight1);
 
-    const orangeLight = new THREE.PointLight(0xffb786, 3.5, 50);
-    orangeLight.position.set(-15, -8, 10);
-    scene.add(orangeLight);
+    const whiteLight2 = new THREE.PointLight(0xd4d4d8, 2.0, 60);
+    whiteLight2.position.set(-16, -6, 10);
+    scene.add(whiteLight2);
 
-    // Mouse Tracking with smooth interpolation
+    // Mouse Tracking
     let targetMouseX = 0;
     let targetMouseY = 0;
     let currentMouseX = 0;
@@ -132,13 +143,12 @@ export default function Hero3DCanvas() {
     const handleMouseMove = (e: MouseEvent) => {
       const windowHalfX = window.innerWidth / 2;
       const windowHalfY = window.innerHeight / 2;
-      targetMouseX = (e.clientX - windowHalfX) * 0.0008;
-      targetMouseY = (e.clientY - windowHalfY) * 0.0008;
+      targetMouseX = (e.clientX - windowHalfX) * 0.0005;
+      targetMouseY = (e.clientY - windowHalfY) * 0.0005;
     };
 
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
 
-    // Window Resize handler
     const handleResize = () => {
       if (!container) return;
       const newWidth = container.clientWidth || window.innerWidth;
@@ -150,28 +160,24 @@ export default function Hero3DCanvas() {
 
     window.addEventListener("resize", handleResize);
 
-    // Animation Loop
     const startTime = performance.now();
 
     const animate = (currentTime: number) => {
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = (currentTime - startTime) * 0.001;
 
-      // Smooth mouse follow
-      currentMouseX += (targetMouseX - currentMouseX) * 0.05;
-      currentMouseY += (targetMouseY - currentMouseY) * 0.05;
+      currentMouseX += (targetMouseX - currentMouseX) * 0.04;
+      currentMouseY += (targetMouseY - currentMouseY) * 0.04;
 
-      mainGroup.rotation.y = currentMouseX + elapsedTime * 0.06;
-      mainGroup.rotation.x = currentMouseY + Math.sin(elapsedTime * 0.2) * 0.05;
+      mainGroup.rotation.y = currentMouseX + elapsedTime * 0.02;
+      mainGroup.rotation.x = currentMouseY + Math.sin(elapsedTime * 0.12) * 0.02;
 
-      // Rotate 3D Torus Knot & Core
-      knotMesh.rotation.x = elapsedTime * 0.15;
-      knotMesh.rotation.y = elapsedTime * 0.2;
-      coreMesh.rotation.x = -elapsedTime * 0.25;
-      coreMesh.rotation.y = -elapsedTime * 0.18;
+      torus1.rotation.x = elapsedTime * 0.2;
+      torus1.rotation.y = elapsedTime * 0.25;
+      icosa1.rotation.y = -elapsedTime * 0.3;
 
-      // Pulse particle positions gently
-      particleSystem.rotation.y = -elapsedTime * 0.02;
+      torus2.rotation.z = -elapsedTime * 0.22;
+      particleSystem.rotation.y = -elapsedTime * 0.015;
 
       renderer.render(scene, camera);
     };
@@ -187,10 +193,12 @@ export default function Hero3DCanvas() {
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
-      knotGeometry.dispose();
-      knotMaterial.dispose();
-      coreGeometry.dispose();
-      coreMaterial.dispose();
+      torusGeo1.dispose();
+      torusMat1.dispose();
+      icosaGeo1.dispose();
+      icosaMat1.dispose();
+      torusGeo2.dispose();
+      torusMat2.dispose();
       particleGeometry.dispose();
       particleMaterial.dispose();
     };
@@ -202,13 +210,12 @@ export default function Hero3DCanvas() {
       className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
       aria-hidden="true"
     >
-      {/* Dynamic Background Glow Overlays */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-tr from-[#571bc1]/20 via-[#9d4edd]/15 to-[#ffb786]/10 blur-[130px] rounded-full -z-10 pointer-events-none" />
-      <div className="absolute top-2/3 right-10 w-[500px] h-[400px] bg-[#8a2be2]/10 blur-[150px] rounded-full -z-10 pointer-events-none" />
-      <div className="absolute top-1/3 left-10 w-[450px] h-[350px] bg-[#ff8c42]/10 blur-[140px] rounded-full -z-10 pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-white/[0.04] blur-[160px] rounded-full -z-10 pointer-events-none" />
+      <div className="absolute top-1/3 right-4 w-[450px] h-[450px] bg-white/[0.03] blur-[160px] rounded-full -z-10 pointer-events-none" />
+      <div className="absolute bottom-1/4 left-4 w-[450px] h-[400px] bg-white/[0.02] blur-[150px] rounded-full -z-10 pointer-events-none" />
 
       {webGLError && (
-        <div className="w-full h-full bg-[radial-gradient(circle_at_50%_40%,rgba(138,43,226,0.15),transparent_70%)]" />
+        <div className="w-full h-full bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.05),transparent_70%)]" />
       )}
     </div>
   );
