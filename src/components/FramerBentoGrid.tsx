@@ -5,6 +5,20 @@ import { useState } from "react";
 export default function FramerBentoGrid() {
   const [activeDevice, setActiveDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [selectedTag, setSelectedTag] = useState("Types");
+  const [vectorClock, setVectorClock] = useState(1042);
+  const [isSimulatingSync, setIsSimulatingSync] = useState(false);
+  const [daemonPing, setDaemonPing] = useState(124);
+
+  const handleSimulateSync = () => {
+    setIsSimulatingSync(true);
+    setVectorClock((prev) => prev + 1);
+    setTimeout(() => setIsSimulatingSync(false), 400);
+  };
+
+  const handlePingDaemon = () => {
+    const newPing = Math.floor(Math.random() * 20 + 110);
+    setDaemonPing(newPing);
+  };
 
   return (
     <section id="features" className="py-24 sm:py-32 px-4 max-w-6xl mx-auto z-10 relative">
@@ -35,9 +49,12 @@ export default function FramerBentoGrid() {
               <div className="w-9 h-9 rounded-xl bg-[#0066FF]/15 border border-[#0066FF]/30 flex items-center justify-center text-[#0066FF]">
                 <span className="material-symbols-outlined text-[20px]">account_tree</span>
               </div>
-              <span className="text-[10px] font-code px-2 py-0.5 rounded bg-[#0066FF]/10 text-[#0066FF] border border-[#0066FF]/20 font-semibold">
-                Sub-10ms OT
-              </span>
+              <button
+                onClick={handleSimulateSync}
+                className="text-[10px] font-code px-2.5 py-1 rounded bg-[#0066FF]/15 text-[#0066FF] border border-[#0066FF]/30 font-semibold hover:bg-[#0066FF] hover:text-white transition-all cursor-pointer"
+              >
+                {isSimulatingSync ? "Broadcasting..." : "⚡ Simulate Peer Sync"}
+              </button>
             </div>
 
             <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-2">
@@ -56,7 +73,7 @@ export default function FramerBentoGrid() {
             <div className="grid grid-cols-3 gap-2 text-center text-[11px] pt-1">
               <div className="p-2 rounded-lg bg-[#0a0a0a] border border-white/10 text-white">
                 <div className="font-bold">Peer A</div>
-                <div className="text-[9px] text-neutral-500">Clock: 1042</div>
+                <div className="text-[9px] text-neutral-500">Clock: {vectorClock}</div>
               </div>
               <div className="p-2 rounded-lg bg-[#0066FF]/10 border border-[#0066FF]/30 text-[#0066FF]">
                 <div className="font-bold">CRDT Root</div>
@@ -64,7 +81,7 @@ export default function FramerBentoGrid() {
               </div>
               <div className="p-2 rounded-lg bg-[#0a0a0a] border border-white/10 text-white">
                 <div className="font-bold">Peer B</div>
-                <div className="text-[9px] text-neutral-500">Clock: 1042</div>
+                <div className="text-[9px] text-neutral-500">Clock: {vectorClock}</div>
               </div>
             </div>
           </div>
@@ -84,9 +101,9 @@ export default function FramerBentoGrid() {
                   <button
                     key={dev}
                     onClick={() => setActiveDevice(dev)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-code uppercase transition-all ${
+                    className={`px-2.5 py-1 rounded text-[10px] font-code uppercase transition-all cursor-pointer ${
                       activeDevice === dev
-                        ? "bg-[#FF7E33] text-black font-bold"
+                        ? "bg-[#FF7E33] text-black font-bold shadow"
                         : "text-neutral-500 hover:text-white"
                     }`}
                   >
@@ -132,20 +149,28 @@ export default function FramerBentoGrid() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {["Types", "Functions", "APIs", "Modules"].map((tag) => (
-              <button
-                key={tag}
-                onClick={() => setSelectedTag(tag)}
-                className={`px-3 py-1 rounded-xl text-xs font-code transition-all ${
-                  selectedTag === tag
-                    ? "bg-[#A855F7] text-white font-bold shadow-sm"
-                    : "bg-[#000000] text-neutral-400 border border-white/10 hover:text-white"
-                }`}
-              >
-                {tag} (Indexed)
-              </button>
-            ))}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              {["Types", "Functions", "APIs", "Modules"].map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(tag)}
+                  className={`px-3 py-1 rounded-xl text-xs font-code transition-all cursor-pointer ${
+                    selectedTag === tag
+                      ? "bg-[#A855F7] text-white font-bold shadow-sm"
+                      : "bg-[#000000] text-neutral-400 border border-white/10 hover:text-white"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <div className="p-2.5 rounded-xl bg-[#000000] border border-white/10 font-code text-[11px] text-neutral-400 flex items-center justify-between">
+              <span>ACTIVE INDEX: {selectedTag.toUpperCase()}</span>
+              <span className="text-[#A855F7] font-bold">
+                {selectedTag === "Types" ? "98.4% Match" : selectedTag === "Functions" ? "96.1% Match" : selectedTag === "APIs" ? "94.8% Match" : "97.2% Match"}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -156,9 +181,12 @@ export default function FramerBentoGrid() {
               <div className="w-9 h-9 rounded-xl bg-[#10B981]/15 border border-[#10B981]/30 flex items-center justify-center text-[#10B981]">
                 <span className="material-symbols-outlined text-[20px]">bolt</span>
               </div>
-              <span className="text-[10px] font-code px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20 font-semibold">
-                &lt; 150ms Boot
-              </span>
+              <button
+                onClick={handlePingDaemon}
+                className="text-[10px] font-code px-2.5 py-1 rounded bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/30 font-semibold hover:bg-[#10B981] hover:text-black transition-all cursor-pointer"
+              >
+                ⚡ Ping Daemon
+              </button>
             </div>
 
             <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-2">
@@ -174,7 +202,7 @@ export default function FramerBentoGrid() {
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
               <span>Firecracker MicroVM Daemon Ready</span>
             </div>
-            <span className="text-[#10B981] font-bold">124ms Telemetry</span>
+            <span className="text-[#10B981] font-bold">{daemonPing}ms Telemetry</span>
           </div>
         </div>
 

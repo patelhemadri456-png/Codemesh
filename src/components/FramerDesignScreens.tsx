@@ -1,15 +1,27 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 
 export default function FramerDesignScreens() {
   const [activeTab, setActiveTab] = useState<"canvas" | "ai" | "network" | "microvm">("canvas");
-  const [diffApplied, setDiffApplied] = useState(false);
-
-  // 3D Card Tilt
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [cardTilt, setCardTilt] = useState("");
+  const [cardTilt, setCardTilt] = useState("perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)");
   const [isHovered, setIsHovered] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Screen 2 AI Diff Toggle State
+  const [aiDiffApplied, setAiDiffApplied] = useState(false);
+
+  // Screen 3 Region Ping State
+  const [activeRegion, setActiveRegion] = useState("fra1");
+  const [regionLatency, setRegionLatency] = useState("4.2ms");
+
+  // Screen 4 MicroVM Benchmark State
+  const [microVmLogs, setMicroVmLogs] = useState<string[]>([
+    "[Daemon] eBPF Sandbox Ready",
+    "[Isolated Runtime] 0ms Memory Contention",
+  ]);
+  const [isBenchmarking, setIsBenchmarking] = useState(false);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
@@ -18,9 +30,8 @@ export default function FramerDesignScreens() {
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-
-    const rotX = ((y - centerY) / centerY) * -2.5;
-    const rotY = ((x - centerX) / centerX) * 2.5;
+    const rotX = -((y - centerY) / centerY) * 3.5;
+    const rotY = ((x - centerX) / centerX) * 3.5;
 
     setCardTilt(`perspective(1000px) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) scale3d(1.005, 1.005, 1.005)`);
   };
@@ -28,6 +39,24 @@ export default function FramerDesignScreens() {
   const handleMouseLeave = () => {
     setIsHovered(false);
     setCardTilt("perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)");
+  };
+
+  const handleSelectRegion = (regionId: string, latency: string) => {
+    setActiveRegion(regionId);
+    setRegionLatency(latency);
+  };
+
+  const handleRunMicroVmBenchmark = () => {
+    setIsBenchmarking(true);
+    setMicroVmLogs((prev) => [...prev, "> Executing hardware container test..."]);
+    setTimeout(() => {
+      setMicroVmLogs((prev) => [
+        ...prev,
+        "✓ MicroVM hardware container booted in 118ms",
+        "✓ 10,000 AST operations verified in 1.4ms",
+      ]);
+      setIsBenchmarking(false);
+    }, 300);
   };
 
   return (
@@ -62,10 +91,11 @@ export default function FramerDesignScreens() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 sm:px-5 py-2 rounded-full font-body text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer ${activeTab === tab.id
+              className={`px-4 sm:px-5 py-2 rounded-full font-body text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer ${
+                activeTab === tab.id
                   ? "bg-white text-black shadow-md scale-[1.02]"
                   : "text-neutral-400 hover:text-white hover:bg-white/5"
-                }`}
+              }`}
             >
               <span className={`material-symbols-outlined text-[16px] ${activeTab === tab.id ? "text-black" : tab.accent}`}>
                 {tab.icon}
@@ -109,6 +139,15 @@ export default function FramerDesignScreens() {
                   <span>•</span>
                   <span>60 FPS Fluid Pan/Zoom</span>
                 </div>
+                <div className="pt-2">
+                  <Link
+                    href="/workspace/demo"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black font-bold text-xs hover:bg-neutral-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.15)]"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                    <span>Launch Live Canvas Studio</span>
+                  </Link>
+                </div>
               </div>
 
               <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#000000] p-5 font-code text-xs relative overflow-hidden">
@@ -138,36 +177,48 @@ export default function FramerDesignScreens() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-5 space-y-4 text-left">
                 <span className="text-xs font-code text-[#A855F7] uppercase tracking-wider font-semibold">
-                  Whole-Codebase AI Agent
+                  Zero-Hallucination Patches
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  Generates, optimizes, and shows live AST diffs.
+                  Whole-repository pgvector RAG memory.
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed font-body">
-                  The agent inspects custom types from your entire multi-file project and streams color-coded semantic diffs before applying any changes.
+                  Google Gemini scans your full 1536-dimensional AST embedding space, writing patches that seamlessly match your existing architecture.
                 </p>
-                <button
-                  onClick={() => setDiffApplied(!diffApplied)}
-                  className="px-4 py-2 rounded-full bg-white text-black font-bold text-xs hover:bg-neutral-200 transition-all cursor-pointer shadow"
-                >
-                  {diffApplied ? "Revert AI Patch" : "Apply Streamed Diff"}
-                </button>
+                <div className="pt-2">
+                  <button
+                    onClick={() => setAiDiffApplied(!aiDiffApplied)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#A855F7]/20 border border-[#A855F7]/40 text-[#A855F7] hover:text-white hover:bg-[#A855F7]/30 font-code text-xs font-semibold transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                    <span>{aiDiffApplied ? "Revert to Original" : "Simulate AI Patch Diff"}</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#000000] p-5 font-code text-xs space-y-3">
-                <div className="flex items-center justify-between text-neutral-400 pb-2 border-b border-white/10">
-                  <span className="text-white font-semibold">DIFF INSPECTOR: presence.ts</span>
-                  <span className="text-[#10B981] font-bold">+14 lines added</span>
+              <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#000000] p-4 sm:p-5 font-code text-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10 text-neutral-400">
+                  <span className="flex items-center gap-1.5 text-white">
+                    <span className="material-symbols-outlined text-[14px] text-[#A855F7]">code</span>
+                    <span>VectorRAG_Refactor.ts</span>
+                  </span>
+                  <span className="text-[11px] text-[#10B981] font-bold">
+                    {aiDiffApplied ? "+8 lines added • Accepted" : "Ready to Patch"}
+                  </span>
                 </div>
-                <div className="bg-[#0a0a0a] p-3.5 rounded-xl border border-white/10 space-y-1 text-[11px] leading-relaxed">
-                  <div className="text-neutral-500">  // Standard presence broadcast</div>
-                  <div className="text-[#10B981] bg-[#10B981]/10 px-1.5 py-0.5 rounded border border-[#10B981]/20">
-                    + export const streamChannel = createP2PMesh(&apos;Omega-Room&apos;);
-                  </div>
-                  <div className="text-[#10B981] bg-[#10B981]/10 px-1.5 py-0.5 rounded border border-[#10B981]/20">
-                    + OT.reconcileDeltas(streamChannel.getVectorClocks());
-                  </div>
-                  <div className="text-neutral-500">  return true;</div>
+                <div className="py-3 space-y-1.5 text-neutral-300">
+                  <div className="text-neutral-500">// Calculating vector cosine similarity</div>
+                  <div>export async function getContextualNodes() &#123;</div>
+                  {aiDiffApplied ? (
+                    <div className="bg-[#10B981]/15 text-[#10B981] px-2 py-1 rounded border-l-2 border-[#10B981]">
+                      + return await pgvector.query(embedding, &#123; similarity: 0.94 &#125;);
+                    </div>
+                  ) : (
+                    <div className="bg-[#EF4444]/15 text-red-400 px-2 py-1 rounded border-l-2 border-red-500">
+                      - return await memoryCache.find(embedding);
+                    </div>
+                  )}
+                  <div>&#125;</div>
                 </div>
               </div>
             </div>
@@ -189,58 +240,107 @@ export default function FramerDesignScreens() {
                 <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed font-body">
                   Collaborator nodes connect to orbital edge relays, synchronizing multi-user keystrokes at sub-frame speed across continents.
                 </p>
+
+                {/* Interactive Region Selectors */}
+                <div className="pt-1">
+                  <div className="text-[10px] font-code text-neutral-500 mb-2">SELECT EDGE CLUSTER:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: "fra1", label: "Frankfurt (fra1)", ping: "4.2ms" },
+                      { id: "hnd1", label: "Tokyo (hnd1)", ping: "12.8ms" },
+                      { id: "sfo1", label: "San Francisco (sfo1)", ping: "6.1ms" },
+                      { id: "sin1", label: "Singapore (sin1)", ping: "8.4ms" },
+                    ].map((reg) => (
+                      <button
+                        key={reg.id}
+                        onClick={() => handleSelectRegion(reg.id, reg.ping)}
+                        className={`px-3 py-1.5 rounded-xl font-code text-xs transition-all cursor-pointer ${
+                          activeRegion === reg.id
+                            ? "bg-[#10B981] text-black font-bold shadow"
+                            : "bg-[#000000] border border-white/10 text-neutral-400 hover:text-white"
+                        }`}
+                      >
+                        {reg.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <div className="lg:col-span-7 grid grid-cols-2 gap-3 font-code text-xs">
-                {[
-                  { region: "Frankfurt (fra1)", latency: "4.2ms", status: "Optimal", color: "text-[#10B981]" },
-                  { region: "San Francisco (sfo1)", latency: "6.1ms", status: "Optimal", color: "text-[#10B981]" },
-                  { region: "Tokyo (nrt1)", latency: "10.8ms", status: "Active", color: "text-[#0066FF]" },
-                  { region: "Singapore (sin1)", latency: "13.4ms", status: "Active", color: "text-[#0066FF]" },
-                ].map((loc) => (
-                  <div key={loc.region} className="p-4 rounded-xl bg-[#000000] border border-white/10 space-y-1 hover:border-white/20 transition-colors">
-                    <div className="text-white font-bold">{loc.region}</div>
-                    <div className={`font-extrabold text-sm ${loc.color}`}>{loc.latency} P99</div>
-                    <div className="text-[10px] text-neutral-500">{loc.status}</div>
+              <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#000000] p-5 font-code text-xs space-y-3">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10 text-neutral-400">
+                  <span>ACTIVE CLUSTER: {activeRegion.toUpperCase()}</span>
+                  <span className="text-[#10B981] font-bold">{regionLatency} P99 Latency</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[11px] pt-1">
+                  <div className="p-2.5 rounded-xl bg-[#0a0a0a] border border-white/10">
+                    <div className="text-neutral-500 text-[10px]">THROUGHPUT</div>
+                    <div className="font-bold text-white mt-1">120K ops/s</div>
                   </div>
-                ))}
+                  <div className="p-2.5 rounded-xl bg-[#0a0a0a] border border-white/10">
+                    <div className="text-neutral-500 text-[10px]">PACKET SIZE</div>
+                    <div className="font-bold text-[#10B981] mt-1">&lt; 120 B</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#0a0a0a] border border-white/10">
+                    <div className="text-neutral-500 text-[10px]">UPTIME</div>
+                    <div className="font-bold text-white mt-1">99.99%</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#0a0a0a] border border-white/10">
+                    <div className="text-neutral-500 text-[10px]">ENCRYPTION</div>
+                    <div className="font-bold text-[#10B981] mt-1">TLS 1.3</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Screen 4: MicroVM Ephemeral Compute */}
+        {/* Screen 4: Ephemeral MicroVM Container Sandbox */}
         {activeTab === "microvm" && (
           <div className="rounded-3xl border border-white/15 bg-[#050505]/95 backdrop-blur-2xl p-6 sm:p-10 shadow-[0_30px_90px_rgba(0,0,0,0.85)]">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-5 space-y-4 text-left">
                 <span className="text-xs font-code text-[#FF7E33] uppercase tracking-wider font-semibold">
-                  Instant Cloud Compute
+                  Hardware Virtualization
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  Ephemeral Firecracker MicroVM containers ready in &lt; 150ms.
+                  Instant Firecracker container execution.
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed font-body">
-                  Run server-side Python, Node.js, and Rust applications directly from your browser with hardened eBPF isolation.
+                  No container cold starts. Boot secure, sandboxed Linux microVM instances in &lt; 150ms with instant hardware acceleration.
                 </p>
+                <div className="pt-2">
+                  <button
+                    onClick={handleRunMicroVmBenchmark}
+                    disabled={isBenchmarking}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#FF7E33] text-black font-bold font-code text-xs hover:bg-[#ff9557] transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">play_arrow</span>
+                    <span>{isBenchmarking ? "Running Benchmark..." : "Run Container Benchmark"}</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="lg:col-span-7 p-4 rounded-2xl bg-[#000000] border border-white/10 font-code text-xs space-y-2">
-                <div className="flex justify-between text-neutral-400 pb-1 border-b border-white/10">
-                  <span>MICROVM TELEMETRY</span>
-                  <span className="text-[#10B981] font-bold">Boot: 124ms</span>
+              <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#000000] p-4 sm:p-5 font-code text-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10 text-neutral-400">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#FF7E33] animate-pulse" />
+                    <span>firecracker_daemon.sh</span>
+                  </span>
+                  <span className="text-[#FF7E33] font-bold">124ms Boot</span>
                 </div>
-                <div className="space-y-1 text-[11px] text-neutral-300 pt-2">
-                  <div>[Kernel] Firecracker v1.7.0 virtual CPU allocated (4 Cores)</div>
-                  <div>[Memory] 8192MB shared pool assigned to room</div>
-                  <div className="text-[#FF7E33] font-semibold">&gt; Ready for zero-delay compilation and execution.</div>
+                <div className="py-2 space-y-1 text-neutral-300 text-[11px]">
+                  {microVmLogs.map((log, idx) => (
+                    <div key={idx} className="truncate">
+                      {log}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         )}
       </div>
-
     </section>
   );
 }

@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { executeCodeInBrowser } from "@/lib/codeRunner";
-import confetti from "canvas-confetti";
 
 export default function StorytellingSectionMicroVM() {
-  const [activeCode, setActiveCode] = useState(
-`# High-Throughput MicroVM Benchmark
+  const [activeLang, setActiveLang] = useState<"python" | "typescript" | "rust">("python");
+
+  const codeSnippets: Record<"python" | "typescript" | "rust", { fileName: string; code: string }> = {
+    python: {
+      fileName: "benchmark.py",
+      code: `# High-Throughput MicroVM Benchmark
 import multiprocessing
 
 def compute_ast_hash(payload: str) -> str:
@@ -15,8 +18,30 @@ def compute_ast_hash(payload: str) -> str:
 
 if __name__ == "__main__":
     result = compute_ast_hash("AST_VECTOR_BLOCK_42")
-    print(f"Status: {result}")`
-  );
+    print(f"Status: {result}")`,
+    },
+    typescript: {
+      fileName: "microvm_stream.ts",
+      code: `// High-Performance TypeScript Stream
+interface StreamEvent { id: string; payload: Uint8Array; }
+
+export function processBatch(events: StreamEvent[]): number {
+  console.log(\`[MicroVM Engine] Processing \${events.length} batch deltas\`);
+  return events.length;
+}
+
+processBatch([{ id: "evt_1", payload: new Uint8Array([1, 2, 3]) }]);`,
+    },
+    rust: {
+      fileName: "memory_guard.rs",
+      code: `// Hardware Memory Guard
+fn main() {
+    println!("[eBPF Virtualization] Hardware memory fence active");
+    println!("Zero cold-start compiler latency: 0.2ms");
+}`,
+    },
+  };
+
   const [outputLogs, setOutputLogs] = useState<string[]>([
     "[Container 0x4B] Firecracker MicroVM booted in 124ms",
     "[Isolated Sandbox] Network namespace isolated (eBPF locked)",
@@ -26,17 +51,17 @@ if __name__ == "__main__":
 
   const handleRun = () => {
     setIsExecuting(true);
-    setOutputLogs((prev) => [...prev, "> Executing benchmark.py..."]);
+    const snippet = codeSnippets[activeLang];
+    setOutputLogs((prev) => [...prev, `> Executing ${snippet.fileName}...`]);
 
     setTimeout(() => {
-      const result = executeCodeInBrowser("benchmark.py", activeCode);
+      const result = executeCodeInBrowser(snippet.fileName, snippet.code);
       setOutputLogs((prev) => [
         ...prev,
         ...result.logs,
-        `✓ [Benchmark completed with 0ms memory contention in ${result.durationMs}ms]`,
+        `✓ [Execution completed with 0ms memory contention in ${result.durationMs}ms]`,
       ]);
       setIsExecuting(false);
-      confetti({ particleCount: 30, spread: 40, origin: { y: 0.75 }, colors: ["#10B981", "#FF7E33", "#ffffff"] });
     }, 280);
   };
 
@@ -95,58 +120,80 @@ if __name__ == "__main__":
         <div className="lg:col-span-7">
           <div className="rounded-2xl border border-white/15 bg-[#050505]/95 backdrop-blur-2xl shadow-[0_20px_70px_rgba(0,0,0,0.8)] overflow-hidden">
             
-            {/* Window Header */}
-            <div className="px-4 py-3 border-b border-white/10 bg-[#000000] flex items-center justify-between">
+            {/* Window Header with Language Switchers */}
+            <div className="px-4 py-3 border-b border-white/10 bg-[#000000] flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-3">
                 <div className="flex gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]/80"></span>
                   <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]/80"></span>
                   <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]/80"></span>
                 </div>
-                <span className="text-xs font-code text-neutral-400">microvm_runner.py</span>
+                
+                {/* Language Toggles */}
+                <div className="flex items-center gap-1 bg-[#0a0a0a] p-0.5 rounded-lg border border-white/10">
+                  {(["python", "typescript", "rust"] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => setActiveLang(lang)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-code capitalize transition-all cursor-pointer ${
+                        activeLang === lang
+                          ? "bg-white text-black font-bold"
+                          : "text-neutral-500 hover:text-white"
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <button
-                onClick={handleRun}
-                disabled={isExecuting}
-                className="px-3 py-1 rounded bg-[#10B981] text-black font-bold text-xs font-code hover:bg-[#059669] transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow"
-              >
-                <span className="material-symbols-outlined text-[14px]">
-                  {isExecuting ? "hourglass_empty" : "play_arrow"}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-code text-neutral-500 hidden sm:inline">
+                  {codeSnippets[activeLang].fileName}
                 </span>
-                <span>{isExecuting ? "Executing..." : "Run MicroVM"}</span>
-              </button>
-            </div>
-
-            {/* Editable Sandbox Code Area */}
-            <div className="p-4 bg-[#000000] font-code text-xs text-neutral-300 leading-relaxed">
-              <textarea
-                value={activeCode}
-                onChange={(e) => setActiveCode(e.target.value)}
-                className="w-full h-32 bg-transparent resize-none focus:outline-none font-code text-xs text-neutral-300 border-none"
-                spellCheck={false}
-              />
-            </div>
-
-            {/* MicroVM Output Console */}
-            <div className="p-3.5 bg-[#000000] border-t border-white/10 font-code text-[11px] space-y-1">
-              <div className="flex items-center justify-between text-neutral-400 mb-1">
-                <span className="flex items-center gap-1.5 text-[#10B981]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse"></span>
-                  EPHEMERAL CONTAINER LOGS
-                </span>
-                <span className="text-[#10B981] font-semibold">124ms Boot Time</span>
-              </div>
-              <div className="space-y-1 text-neutral-400 max-h-24 overflow-y-auto">
-                {outputLogs.map((log, idx) => (
-                  <div key={idx} className="leading-tight">
-                    {log}
-                  </div>
-                ))}
+                <button
+                  onClick={handleRun}
+                  disabled={isExecuting}
+                  className="px-3.5 py-1 rounded-full bg-[#10B981] text-black font-bold text-xs font-code hover:bg-[#34D399] transition-all flex items-center gap-1 shadow cursor-pointer disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[14px]">play_arrow</span>
+                  <span>{isExecuting ? "Executing..." : "Run MicroVM"}</span>
+                </button>
               </div>
             </div>
+
+            {/* Code Viewport */}
+            <div className="p-4 sm:p-5 font-code text-xs sm:text-sm text-neutral-200 leading-relaxed bg-[#000000] border-b border-white/10">
+              <pre className="overflow-x-auto text-neutral-300">
+                <code>{codeSnippets[activeLang].code}</code>
+              </pre>
+            </div>
+
+            {/* Live Terminal Output Drawer */}
+            <div className="p-3.5 bg-[#050505] font-code text-[11px] space-y-1 text-neutral-400">
+              <div className="flex items-center justify-between text-neutral-500 text-[10px] pb-1 border-b border-white/5">
+                <span>STDOUT STREAM</span>
+                <span className="text-[#10B981] font-semibold">Firecracker MicroVM Active</span>
+              </div>
+              {outputLogs.map((log, idx) => (
+                <div
+                  key={idx}
+                  className={`truncate ${
+                    log.startsWith("✓")
+                      ? "text-[#10B981] font-semibold"
+                      : log.startsWith(">")
+                      ? "text-white"
+                      : "text-neutral-400"
+                  }`}
+                >
+                  {log}
+                </div>
+              ))}
+            </div>
+
           </div>
         </div>
+
       </div>
     </section>
   );

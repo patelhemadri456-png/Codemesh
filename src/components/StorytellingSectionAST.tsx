@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import confetti from "canvas-confetti";
 
 export default function StorytellingSectionAST() {
   const [typedCode, setTypedCode] = useState(
@@ -16,6 +15,7 @@ export function broadcastTransform(delta: ASTDelta): boolean {
     "[CRDT Kernel] Reconciled AST insert: 'syncClock' (0 conflicts)",
     "[WebRTC Mesh] P99 latency: 4.2ms to Frankfurt edge",
   ]);
+  const [isRunningDelta, setIsRunningDelta] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -24,14 +24,20 @@ export function broadcastTransform(delta: ASTDelta): boolean {
       const peer = peers[Math.floor(Math.random() * peers.length)];
       setStreamLogs((prev) => [
         `[Peer ${peer}] delta synced in ${ms}ms`,
-        ...prev.slice(0, 4),
+        ...prev.slice(0, 3),
       ]);
-    }, 2800);
+    }, 3200);
     return () => clearInterval(interval);
   }, []);
 
   const handleTestRun = () => {
-    confetti({ particleCount: 35, spread: 45, origin: { y: 0.7 }, colors: ["#0066FF", "#A855F7", "#ffffff"] });
+    setIsRunningDelta(true);
+    const ms = (Math.random() * 1.5 + 2.5).toFixed(1);
+    setStreamLogs((prev) => [
+      `✓ [Local Dispatch] AST delta broadcasted to 32 nodes in ${ms}ms (0 conflicts)`,
+      ...prev,
+    ]);
+    setTimeout(() => setIsRunningDelta(false), 500);
   };
 
   return (
@@ -99,22 +105,21 @@ export function broadcastTransform(delta: ASTDelta): boolean {
                 </div>
                 <span className="text-xs font-code text-neutral-400">presence_dispatcher.ts</span>
               </div>
-
-              {/* Collaborators */}
               <div className="flex items-center gap-2">
-                <div className="flex -space-x-1.5">
-                  <div className="w-6 h-6 rounded-full bg-[#0066FF] text-white text-[9px] font-bold flex items-center justify-center border border-black shadow">
+                <div className="flex -space-x-1">
+                  <div className="w-5 h-5 rounded-full bg-[#0066FF] text-white text-[9px] font-bold flex items-center justify-center border border-black">
                     ER
                   </div>
-                  <div className="w-6 h-6 rounded-full bg-[#FF7E33] text-black text-[9px] font-bold flex items-center justify-center border border-black shadow">
+                  <div className="w-5 h-5 rounded-full bg-[#FF7E33] text-black text-[9px] font-bold flex items-center justify-center border border-black">
                     MC
                   </div>
                 </div>
                 <button
                   onClick={handleTestRun}
-                  className="px-2.5 py-1 rounded bg-[#0066FF] text-white font-semibold text-[11px] font-code hover:bg-[#2563EB] transition-colors"
+                  disabled={isRunningDelta}
+                  className="px-3 py-1 rounded-full bg-[#0066FF] text-white font-semibold text-xs font-code hover:bg-[#2563EB] transition-all cursor-pointer disabled:opacity-50"
                 >
-                  Run Delta
+                  {isRunningDelta ? "Broadcasting..." : "Run Delta"}
                 </button>
               </div>
             </div>

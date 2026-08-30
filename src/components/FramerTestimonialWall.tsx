@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface WallItem {
   name: string;
   handle: string;
@@ -68,11 +70,19 @@ const wallItems: WallItem[] = [
 ];
 
 export default function FramerTestimonialWall() {
+  const [activeFilter, setActiveFilter] = useState("All");
+
+  const filterCategories = ["All", "OT Sync", "Vector Memory", "MicroVM", "Zero Locks", "Collaboration"];
+
+  const filteredItems = activeFilter === "All"
+    ? wallItems
+    : wallItems.filter((item) => item.badge === activeFilter);
+
   return (
     <section className="py-24 sm:py-32 px-4 max-w-6xl mx-auto z-10 relative">
       
       {/* Section Header */}
-      <div className="text-center max-w-3xl mx-auto mb-16">
+      <div className="text-center max-w-3xl mx-auto mb-10">
         <span className="text-xs font-code uppercase tracking-widest text-white bg-white/5 border border-white/10 px-3.5 py-1 rounded-full">
           Wall of Love
         </span>
@@ -87,44 +97,63 @@ export default function FramerTestimonialWall() {
         </p>
       </div>
 
+      {/* Interactive Category Filter Pills */}
+      <div className="flex justify-center flex-wrap gap-2 mb-12">
+        {filterCategories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveFilter(cat)}
+            className={`px-3.5 py-1.5 rounded-full font-code text-xs transition-all cursor-pointer ${
+              activeFilter === cat
+                ? "bg-white text-black font-bold shadow-md scale-105"
+                : "bg-[#0a0a0a] text-neutral-400 border border-white/10 hover:text-white hover:border-white/25"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
       {/* Bento Grid Masonry with Pure Black & White Palette */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {wallItems.map((item, idx) => (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {filteredItems.map((item, idx) => (
           <div
             key={idx}
-            className="rounded-3xl border border-white/15 bg-[#050505]/85 p-6 backdrop-blur-2xl shadow-[0_15px_40px_rgba(0,0,0,0.5)] hover:border-white/30 hover:shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_30px_rgba(255,255,255,0.05)] transition-all duration-300 flex flex-col justify-between group"
+            className="rounded-3xl border border-white/10 bg-[#050505]/90 backdrop-blur-2xl p-6 sm:p-7 flex flex-col justify-between shadow-[0_20px_50px_rgba(0,0,0,0.6)] hover:border-white/25 transition-all group"
           >
+            {/* Header: User Info & Tag */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-white text-black">
+                  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/15 flex items-center justify-center font-bold text-xs text-white">
                     {item.initials}
                   </div>
                   <div>
-                    <div className="font-headline font-semibold text-xs text-white flex items-center gap-1">
-                      <span>{item.name}</span>
-                      <span className="material-symbols-outlined text-[13px] text-white">
-                        verified
-                      </span>
+                    <div className="font-bold text-white text-sm leading-tight">
+                      {item.name}
                     </div>
-                    <div className="text-[10px] font-code text-neutral-400">
-                      {item.role} • {item.company}
+                    <div className="text-[11px] font-code text-neutral-500">
+                      {item.handle} • {item.company}
                     </div>
                   </div>
                 </div>
-
-                <span className="text-[10px] font-code px-2 py-0.5 rounded-full bg-white/5 text-white border border-white/10">
+                <span className="text-[10px] font-code px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-neutral-400 font-semibold">
                   {item.badge}
                 </span>
               </div>
 
+              {/* Quote */}
               <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed font-body">
                 &ldquo;{item.quote}&rdquo;
               </p>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-white/10 text-[11px] font-code text-neutral-500 group-hover:text-neutral-300 transition-colors">
-              {item.handle}
+            {/* Footer: Verified User Badge */}
+            <div className="pt-5 mt-5 border-t border-white/10 flex items-center justify-between text-[11px] font-code text-neutral-500">
+              <span>{item.role}</span>
+              <span className="material-symbols-outlined text-[15px] text-[#10B981]">
+                verified
+              </span>
             </div>
           </div>
         ))}
