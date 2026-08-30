@@ -16,7 +16,7 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => (
     <div className="flex-1 flex items-center justify-center bg-[#0a0a0a] text-xs font-code text-[#8c909f]">
-      <span className="w-2 h-2 rounded-full bg-[#adc6ff] animate-ping mr-2"></span>
+      <span className="w-2 h-2 rounded-full bg-[#0066FF] animate-ping mr-2"></span>
       Initializing Monaco Cloud Environment...
     </div>
   ),
@@ -35,7 +35,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   const [showChatPanel, setShowChatPanel] = useState(true);
   const [editorNotice, setEditorNotice] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
-  const [user, setUser] = useState<UserSession | null>(null);
+  const [user, setUser] = useState<UserSession>(getUserSession());
 
   // Editor Settings
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -60,6 +60,14 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   const [terminalInput, setTerminalInput] = useState("");
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
+  // Sync user session on auth changes
+  useEffect(() => {
+    setUser(getUserSession());
+    const handleAuth = () => setUser(getUserSession());
+    window.addEventListener("codemesh:auth_change", handleAuth);
+    return () => window.removeEventListener("codemesh:auth_change", handleAuth);
+  }, []);
+
   // Load initial dynamic files per room
   useEffect(() => {
     const currentUser = getUserSession();
@@ -73,21 +81,24 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
       setOpenTabIds(initialFiles.slice(0, 2).map((f) => f.id));
     }
 
+    const currentHandle = currentUser.isLoggedIn ? currentUser.handle : "engineer";
     setTerminalHistory([
-      `user@codemesh:~/${roomId}$ # Workspace initialized`,
+      `${currentHandle}@codemesh:~/${roomId}$ # Workspace initialized`,
       `[CodeMesh Container] Active room: ${roomId}`,
       `Type 'run' or 'python <file>' to execute code. Type 'help' for commands.`,
-      `user@codemesh:~/${roomId}$ `,
+      `${currentHandle}@codemesh:~/${roomId}$ `,
     ]);
   }, [roomId]);
 
-  // Dynamic Members
+  // Dynamic Members (Real User Account as Host)
   const members: RoomMember[] = [
     {
-      id: "m_user",
+      id: user?.id || "m_user",
       name: user?.isLoggedIn ? `@${user.handle}` : "You",
+      email: user?.email,
       initials: user?.initials || "YOU",
-      avatarColor: user?.avatarColor || "#4d8eff",
+      avatarColor: user?.avatarColor || "#0066FF",
+      avatarUrl: user?.avatarUrl,
       status: "active",
       isHost: true,
       currentAction: "editing",
@@ -96,7 +107,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
       id: "m_alex",
       name: "Alex",
       initials: "AL",
-      avatarColor: "#adc6ff",
+      avatarColor: "#0066FF",
       status: "active",
       activeLine: 12,
       currentAction: "editing",
@@ -105,7 +116,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
       id: "m_sam",
       name: "Sarah J.",
       initials: "SJ",
-      avatarColor: "#ffb786",
+      avatarColor: "#FF7E33",
       status: "active",
       activeLine: 6,
       currentAction: "viewing",
@@ -425,11 +436,15 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
             </button>
 
             <div
-              className="w-6 h-6 rounded-full flex items-center justify-center mx-auto text-[10px] font-bold text-white shadow border border-[#424754]"
-              style={{ backgroundColor: user?.avatarColor || "#4d8eff" }}
-              title={user?.isLoggedIn ? `@${user.handle}` : "Guest User"}
+              className="w-6 h-6 rounded-full flex items-center justify-center mx-auto text-[10px] font-bold text-white shadow border border-white/20 overflow-hidden"
+              style={{ backgroundColor: user?.avatarColor || "#0066FF" }}
+              title={user?.isLoggedIn ? `@${user.handle} (${user.email})` : "Guest User"}
             >
-              {user?.initials || "YOU"}
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.handle} className="w-full h-full object-cover" />
+              ) : (
+                user?.initials || "YOU"
+              )}
             </div>
           </div>
         </aside>
@@ -530,18 +545,22 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
                     >
                       <div className="relative">
                         <div
-                          className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold overflow-hidden border border-white/10 shrink-0"
                           style={{
-                            backgroundColor: m.avatarColor,
-                            color: m.initials === "YOU" ? "#ffffff" : "#00285d",
+                            backgroundColor: m.avatarColor || "#0066FF",
+                            color: "#ffffff",
                           }}
                         >
-                          {m.initials}
+                          {m.avatarUrl ? (
+                            <img src={m.avatarUrl} alt={m.name} className="w-full h-full object-cover" />
+                          ) : (
+                            m.initials
+                          )}
                         </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full border border-[#181818]" />
+                        <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-[#10B981] rounded-full border border-[#181818]" />
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-[#e5e2e1] font-medium leading-none">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs text-[#e5e2e1] font-medium leading-none truncate">
                           {m.name} {m.isHost && "(Host)"}
                         </span>
                         {m.activeLine && (

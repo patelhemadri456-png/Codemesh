@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -32,6 +33,11 @@ export default function RootLayout({
       </head>
       <body className="bg-[#050508] text-[#ededed] font-body antialiased min-h-screen selection:bg-[#571bc1]/40 selection:text-[#f4f2f0]">
         {children}
+        {/* Official Google Identity Services Client SDK */}
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

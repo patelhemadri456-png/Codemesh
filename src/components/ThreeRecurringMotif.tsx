@@ -37,51 +37,71 @@ export default function ThreeRecurringMotif({
 
     container.appendChild(renderer.domElement);
 
-    const group = new THREE.Group();
-    scene.add(group);
+    const planetGroup = new THREE.Group();
+    scene.add(planetGroup);
 
-    // Pure Monochrome Silver/White Nested Torus & Icosahedron Wireframe
-    const outerRingGeo = new THREE.TorusGeometry(variant === "cta" ? 7.8 : 6.8, 0.22, 24, 80);
-    const outerRingMat = new THREE.MeshStandardMaterial({
+    // 1. Celestial Planet Sphere
+    const sphereGeo = new THREE.SphereGeometry(variant === "cta" ? 4.8 : 4.0, 32, 32);
+    const sphereMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      emissive: 0x333333,
+      emissive: 0x222222,
+      wireframe: true,
+      transparent: true,
+      opacity: variant === "cta" ? 0.45 : 0.3,
+    });
+    const planet = new THREE.Mesh(sphereGeo, sphereMat);
+    planetGroup.add(planet);
+
+    // 2. Dense Inner Core
+    const coreGeo = new THREE.IcosahedronGeometry(variant === "cta" ? 3.2 : 2.6, 2);
+    const coreMat = new THREE.MeshBasicMaterial({
+      color: 0xd4d4d8,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.25,
+    });
+    const innerCore = new THREE.Mesh(coreGeo, coreMat);
+    planetGroup.add(innerCore);
+
+    // 3. Planetary Orbital Rings
+    const ringGeo = new THREE.RingGeometry(variant === "cta" ? 6.5 : 5.4, variant === "cta" ? 10.5 : 8.8, 64);
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0x111111,
       wireframe: true,
       transparent: true,
       opacity: variant === "cta" ? 0.35 : 0.25,
+      side: THREE.DoubleSide,
     });
-    const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
-    group.add(outerRing);
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2.3;
+    planetGroup.add(ring);
 
-    const midRingGeo = new THREE.TorusGeometry(variant === "cta" ? 5.8 : 5.0, 0.18, 20, 60);
-    const midRingMat = new THREE.MeshStandardMaterial({
-      color: 0xd4d4d8,
-      emissive: 0x27272a,
-      wireframe: true,
-      transparent: true,
-      opacity: variant === "cta" ? 0.4 : 0.3,
-    });
-    const midRing = new THREE.Mesh(midRingGeo, midRingMat);
-    midRing.rotation.x = Math.PI / 3;
-    group.add(midRing);
-
-    const coreGeo = new THREE.IcosahedronGeometry(variant === "cta" ? 3.6 : 3.0, 1);
-    const coreMat = new THREE.MeshStandardMaterial({
+    // 4. Outer Orbital Track
+    const orbitTrackGeo = new THREE.TorusGeometry(variant === "cta" ? 11.5 : 9.8, 0.12, 16, 80);
+    const orbitTrackMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
-      emissive: 0x52525b,
-      wireframe: true,
       transparent: true,
-      opacity: variant === "cta" ? 0.5 : 0.35,
+      opacity: 0.18,
+      wireframe: true,
     });
-    const core = new THREE.Mesh(coreGeo, coreMat);
-    group.add(core);
+    const orbitTrack = new THREE.Mesh(orbitTrackGeo, orbitTrackMat);
+    orbitTrack.rotation.x = Math.PI / 1.7;
+    planetGroup.add(orbitTrack);
 
-    // Monochrome Lights
+    // Orbiting Mesh Satellite
+    const satGeo = new THREE.OctahedronGeometry(0.4);
+    const satMat = new THREE.MeshBasicMaterial({ color: 0x0066ff, wireframe: true });
+    const satellite = new THREE.Mesh(satGeo, satMat);
+    planetGroup.add(satellite);
+
+    // Lights
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
-    const whiteLight = new THREE.PointLight(0xffffff, 3, 50);
-    whiteLight.position.set(12, 10, 10);
-    scene.add(whiteLight);
+    const pointLight = new THREE.PointLight(0xffffff, 3.5, 60);
+    pointLight.position.set(14, 10, 12);
+    scene.add(pointLight);
 
     let scrollY = 0;
     const handleScroll = () => {
@@ -114,15 +134,24 @@ export default function ThreeRecurringMotif({
     const animate = (currentTime: number) => {
       animationFrameId = requestAnimationFrame(animate);
       const elapsed = (currentTime - startTime) * 0.001;
-
       const scrollFactor = scrollY * 0.0008;
 
-      group.rotation.x = elapsed * 0.15 + mouseY + scrollFactor;
-      group.rotation.y = elapsed * 0.2 + mouseX + scrollFactor * 0.5;
+      planetGroup.rotation.x = elapsed * 0.12 + mouseY + scrollFactor;
+      planetGroup.rotation.y = elapsed * 0.16 + mouseX + scrollFactor * 0.5;
 
-      outerRing.rotation.z = elapsed * 0.1;
-      midRing.rotation.y = -elapsed * 0.18;
-      core.rotation.x = -elapsed * 0.25;
+      planet.rotation.y = elapsed * 0.2;
+      innerCore.rotation.y = -elapsed * 0.25;
+      ring.rotation.z = elapsed * 0.08;
+      orbitTrack.rotation.z = -elapsed * 0.12;
+
+      // Orbit satellite
+      const satDist = variant === "cta" ? 8.5 : 7.2;
+      satellite.position.set(
+        Math.cos(elapsed * 0.8) * satDist,
+        Math.sin(elapsed * 0.6) * 1.5,
+        Math.sin(elapsed * 0.8) * satDist
+      );
+      satellite.rotation.x = elapsed * 2;
 
       renderer.render(scene, camera);
     };
@@ -139,12 +168,16 @@ export default function ThreeRecurringMotif({
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
-      outerRingGeo.dispose();
-      outerRingMat.dispose();
-      midRingGeo.dispose();
-      midRingMat.dispose();
+      sphereGeo.dispose();
+      sphereMat.dispose();
       coreGeo.dispose();
       coreMat.dispose();
+      ringGeo.dispose();
+      ringMat.dispose();
+      orbitTrackGeo.dispose();
+      orbitTrackMat.dispose();
+      satGeo.dispose();
+      satMat.dispose();
     };
   }, [variant]);
 

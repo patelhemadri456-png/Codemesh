@@ -24,11 +24,13 @@ export default function Navbar({
   activeFile,
 }: NavbarProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<UserSession>(getUserSession());
   const [theme, setTheme] = useState<AppTheme>("dark");
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     setUser(getUserSession());
     const initialTheme = getThemePreference();
     setTheme(initialTheme);
@@ -72,60 +74,48 @@ export default function Navbar({
   };
 
   return (
-    <nav className="h-14 border-b border-white/10 px-4 md:px-6 flex items-center justify-between bg-[#111113]/80 backdrop-blur-md sticky top-0 z-40">
+    <nav className="h-14 border-b border-white/10 px-4 md:px-6 flex items-center justify-between bg-[#000000]/90 backdrop-blur-xl sticky top-0 z-40">
       {/* Brand & Logo */}
       <div className="flex items-center gap-6">
-        <Link href="/" className="flex items-center gap-2 group">
-          <span
-            className="material-symbols-outlined text-[#adc6ff] text-[24px] group-hover:rotate-12 transition-transform"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            widgets
-          </span>
-          <span className="font-headline font-bold text-lg tracking-tight text-[#ededed]">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="w-6 h-6 rounded-md bg-white p-[1px] shadow-sm flex items-center justify-center">
+            <span
+              className="material-symbols-outlined text-black text-[16px]"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              widgets
+            </span>
+          </div>
+          <span className="font-headline font-bold text-base tracking-tight text-white">
             CodeMesh
           </span>
-          <span className="text-[10px] font-code bg-[#1e1e23] border border-white/10 text-[#adc6ff] px-1.5 py-0.5 rounded">
+          <span className="text-[10px] font-code bg-white/10 border border-white/15 text-white px-1.5 py-0.5 rounded-full">
             v2.4
           </span>
         </Link>
 
-        {variant === "landing" && (
-          <div className="hidden md:flex items-center gap-6 text-xs font-medium text-[#b0b4c3]">
-            <a href="#velocity" className="hover:text-[#ededed] transition-colors">
-              Architecture
-            </a>
-            <Link href="/workspaces" className="hover:text-[#ededed] transition-colors">
-              Workspaces
-            </Link>
-            <Link href="/auth" className="hover:text-[#ededed] transition-colors">
-              Pricing
-            </Link>
-          </div>
-        )}
-
         {variant === "dashboard" && (
-          <div className="hidden md:flex items-center gap-2 text-xs font-code text-[#727685]">
+          <div className="hidden md:flex items-center gap-2 text-xs font-code text-neutral-500">
             <span>/</span>
-            <span className="text-[#ededed] font-semibold">workspaces</span>
+            <span className="text-white font-semibold">workspaces</span>
           </div>
         )}
 
         {variant === "ide" && roomId && (
-          <div className="hidden sm:flex items-center gap-2 text-xs font-code text-[#727685]">
+          <div className="hidden sm:flex items-center gap-2 text-xs font-code text-neutral-500">
             <span>/</span>
             <Link
               href="/workspaces"
-              className="hover:text-[#ededed] transition-colors"
+              className="hover:text-white transition-colors"
             >
-              rooms
+              workspaces
             </Link>
             <span>/</span>
-            <span className="text-[#adc6ff] font-semibold">{roomId}</span>
+            <span className="text-white font-semibold">{roomId}</span>
             {activeFile && (
               <>
                 <span>/</span>
-                <span className="text-[#ededed]">{activeFile}</span>
+                <span className="text-neutral-300">{activeFile}</span>
               </>
             )}
           </div>
@@ -138,96 +128,68 @@ export default function Navbar({
         <button
           onClick={toggleTheme}
           title={`Switch to ${theme === "dark" ? "Light" : "Dark"} mode`}
-          className="p-1.5 rounded-lg border border-white/10 hover:border-white/20 text-[#b0b4c3] hover:text-[#ededed] transition-colors flex items-center justify-center bg-[#17171a]"
+          className="p-1.5 rounded-full border border-white/10 hover:border-white/20 text-neutral-400 hover:text-white transition-colors flex items-center justify-center bg-white/5"
         >
-          <span className="material-symbols-outlined text-[18px]">
+          <span className="material-symbols-outlined text-[16px]">
             {theme === "dark" ? "light_mode" : "dark_mode"}
           </span>
         </button>
 
-        {variant === "landing" && (
-          <div className="flex items-center gap-3">
-            <Link
-              href="/auth"
-              className="text-xs font-code text-[#ededed] hover:text-white px-3 py-1.5 rounded-lg transition-colors hidden sm:block"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/workspaces"
-              className="bg-[#adc6ff] text-[#002e6a] text-xs font-code font-bold px-3.5 py-1.5 rounded-lg hover:bg-[#d8e2ff] transition-all shadow-[0_0_15px_rgba(173,198,255,0.3)]"
-            >
-              Get Started
-            </Link>
-          </div>
-        )}
-
-        {(variant === "dashboard" || variant === "ide") && (
+        {/* User Status / Avatar */}
+        {mounted && user.isLoggedIn ? (
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-1 rounded-lg border border-white/10 hover:border-white/20 bg-[#17171a] transition-all"
+              className="flex items-center gap-2 p-1 pl-2.5 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-all text-xs font-medium text-white cursor-pointer"
             >
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow"
-                style={{ backgroundColor: user.avatarColor || "#4d8eff" }}
-              >
-                {user.initials}
-              </div>
-              <span className="font-code text-xs text-[#ededed] hidden sm:block pr-1">
-                {user.handle}
-              </span>
-              <span className="material-symbols-outlined text-[16px] text-[#727685]">
-                expand_more
-              </span>
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.handle}
+                  className="w-6 h-6 rounded-full object-cover border border-white/20 shrink-0"
+                />
+              ) : (
+                <div
+                  className="w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: user.avatarColor || "#0066FF" }}
+                >
+                  {user.initials || "U"}
+                </div>
+              )}
+              <span className="truncate max-w-[120px]">@{user.handle}</span>
             </button>
 
-            {/* Dropdown Menu */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-[#17171a] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden font-code text-xs">
-                <div className="p-3 border-b border-white/10 bg-[#111113]">
-                  <div className="font-bold text-[#ededed]">{user.handle}</div>
-                  <div className="text-[11px] text-[#727685] truncate">{user.email}</div>
-                  <div className="mt-1 flex items-center gap-1.5 text-[10px] text-[#adc6ff]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                    <span>Provider: {user.provider || "email"}</span>
-                  </div>
+              <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-[#0a0a0a] border border-white/15 shadow-2xl py-2 z-50 font-body text-xs">
+                <div className="px-4 py-2 border-b border-white/10">
+                  <div className="font-semibold text-white truncate">@{user.handle}</div>
+                  <div className="text-[10px] font-code text-neutral-500 truncate">{user.email}</div>
                 </div>
-
-                <div className="p-1 space-y-0.5">
-                  <button
-                    onClick={toggleTheme}
-                    className="w-full px-3 py-2 text-left hover:bg-[#28282e] text-[#ededed] rounded-lg transition-colors flex items-center justify-between"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[16px]">
-                        {theme === "dark" ? "light_mode" : "dark_mode"}
-                      </span>
-                      Theme
-                    </span>
-                    <span className="text-[10px] text-[#727685] uppercase">{theme}</span>
-                  </button>
-
-                  <Link
-                    href="/workspaces"
-                    onClick={() => setShowUserMenu(false)}
-                    className="w-full px-3 py-2 text-left hover:bg-[#28282e] text-[#ededed] rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">grid_view</span>
-                    All Workspaces
-                  </Link>
-
-                  <button
-                    onClick={handleLogout}
-                    className="w-full px-3 py-2 text-left hover:bg-red-950/40 text-red-400 rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">logout</span>
-                    Sign Out
-                  </button>
-                </div>
+                <Link
+                  href="/workspaces"
+                  onClick={() => setShowUserMenu(false)}
+                  className="w-full text-left px-4 py-2 text-neutral-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[16px]">grid_view</span>
+                  <span>Workspaces</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-red-400 hover:bg-white/5 flex items-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">logout</span>
+                  <span>Sign Out</span>
+                </button>
               </div>
             )}
           </div>
+        ) : (
+          <Link
+            href="/auth"
+            className="px-4 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-all"
+          >
+            Sign In
+          </Link>
         )}
       </div>
     </nav>

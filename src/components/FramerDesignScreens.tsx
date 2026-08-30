@@ -32,11 +32,12 @@ export default function FramerDesignScreens() {
 
   return (
     <section id="screens" className="py-24 sm:py-32 px-4 max-w-7xl mx-auto z-10 relative">
-      
+
       {/* Section Header */}
       <div className="text-center max-w-3xl mx-auto mb-14">
-        <span className="text-xs font-code uppercase tracking-widest text-white bg-white/5 border border-white/10 px-3.5 py-1 rounded-full">
-          The Suite
+        <span className="text-xs font-code uppercase tracking-widest text-white bg-white/5 border border-white/10 px-3.5 py-1 rounded-full flex items-center justify-center gap-1.5 w-fit mx-auto">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#0066FF] animate-ping" />
+          <span>The Orbital Suite</span>
         </span>
         <h2 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-[-0.04em] text-white mt-4 leading-tight">
           Everything on the canvas.{" "}
@@ -45,7 +46,7 @@ export default function FramerDesignScreens() {
           </span>
         </h2>
         <p className="text-sm sm:text-base text-neutral-400 mt-3">
-          Explore the exact visual screens engineered for high-performance pair programming.
+          Explore the exact visual screens engineered for planetary-scale collaborative development.
         </p>
       </div>
 
@@ -55,17 +56,16 @@ export default function FramerDesignScreens() {
           {[
             { id: "canvas", label: "01. Infinite Canvas", icon: "grid_view", accent: "text-[#0066FF]" },
             { id: "ai", label: "02. AI Diff Inspector", icon: "auto_awesome", accent: "text-[#A855F7]" },
-            { id: "network", label: "03. Edge Network", icon: "language", accent: "text-[#10B981]" },
+            { id: "network", label: "03. Planetary Mesh", icon: "public", accent: "text-[#10B981]" },
             { id: "microvm", label: "04. MicroVM Sandbox", icon: "terminal", accent: "text-[#FF7E33]" },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 sm:px-5 py-2 rounded-full font-body text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer ${
-                activeTab === tab.id
+              className={`px-4 sm:px-5 py-2 rounded-full font-body text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer ${activeTab === tab.id
                   ? "bg-white text-black shadow-md scale-[1.02]"
                   : "text-neutral-400 hover:text-white hover:bg-white/5"
-              }`}
+                }`}
             >
               <span className={`material-symbols-outlined text-[16px] ${activeTab === tab.id ? "text-black" : tab.accent}`}>
                 {tab.icon}
@@ -174,19 +174,20 @@ export default function FramerDesignScreens() {
           </div>
         )}
 
-        {/* Screen 3: Global Edge Network */}
+        {/* Screen 3: Planetary Mesh & Global Edge Network */}
         {activeTab === "network" && (
           <div className="rounded-3xl border border-white/15 bg-[#050505]/95 backdrop-blur-2xl p-6 sm:p-10 shadow-[0_30px_90px_rgba(0,0,0,0.85)]">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-5 space-y-4 text-left">
-                <span className="text-xs font-code text-[#10B981] uppercase tracking-wider font-semibold">
-                  Multi-Region Edge Clusters
+                <span className="text-xs font-code text-[#10B981] uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping" />
+                  Planetary Mesh Relays
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  Distributed state propagation across 32 worldwide edge clusters.
+                  Distributed state propagation across 32 global edge clusters.
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed font-body">
-                  Peer nodes automatically connect to the lowest latency relay, ensuring instantaneous multi-cursor updates regardless of geographical distance.
+                  Collaborator nodes connect to orbital edge relays, synchronizing multi-user keystrokes at sub-frame speed across continents.
                 </p>
               </div>
 

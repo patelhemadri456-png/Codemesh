@@ -19,7 +19,7 @@ export default function DemoVideoModal({ onClose }: DemoVideoModalProps) {
     {
       title: "Contextual Gemini RAG Assistant",
       desc: "AI assistant indexes your custom types and automatically optimizes hot loops.",
-      code: `// Gemini suggested dynamic buffer patch:\nfrom config import get_optimal_buffer\nbuffer_size = get_optimal_buffer() # Auto-tuned for high throughput`,
+      code: `// Gemini suggested dynamic buffer patch:\nfrom config import get_optimal_buffer\n\nbuffer_size = get_optimal_buffer() # Auto-tuned for high throughput\nprint(f"[RAG Memory] Buffer allocated: {buffer_size}KB")`,
     },
     {
       title: "Instant In-Browser Code Sandbox",
@@ -30,42 +30,43 @@ export default function DemoVideoModal({ onClose }: DemoVideoModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-[#0e0e0e]/85 backdrop-blur-md"
+        className="absolute inset-0 bg-black/85 backdrop-blur-md"
         onClick={onClose}
       />
-      <div className="relative bg-[#1c1b1b] border border-[#424754] rounded-lg w-full max-w-2xl shadow-2xl flex flex-col z-10 overflow-hidden">
-        {/* Top accent */}
-        <div className="border-t-2 border-[#adc6ff] absolute top-0 left-0 right-0 pointer-events-none" />
-
+      
+      {/* Modal Card with Strict Fixed Dimensions to Prevent Resizing Between Steps */}
+      <div className="relative bg-[#0a0a0a] border border-white/15 rounded-2xl w-full max-w-2xl shadow-[0_25px_80px_rgba(0,0,0,0.95)] flex flex-col z-10 overflow-hidden">
+        
         {/* Header */}
-        <div className="p-4 border-b border-[#2d2d2d] flex justify-between items-center bg-[#201f1f]">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#adc6ff] text-[20px]">
+        <div className="p-4 sm:px-6 border-b border-white/10 flex justify-between items-center bg-[#000000]">
+          <div className="flex items-center gap-2.5">
+            <span className="material-symbols-outlined text-white text-[20px]">
               play_circle
             </span>
-            <h2 className="font-headline text-base font-bold text-[#e5e2e1]">
+            <h2 className="font-headline text-sm sm:text-base font-bold text-white tracking-tight">
               CodeMesh Interactive Demo Showcase
             </h2>
           </div>
           <button
-            className="text-[#8c909f] hover:text-[#e5e2e1] transition-colors p-1"
+            className="text-neutral-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
             onClick={onClose}
           >
             <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
 
-        {/* Interactive Step Switcher */}
-        <div className="flex border-b border-[#2d2d2d] bg-[#121212]">
+        {/* Interactive Step Switcher Tabs */}
+        <div className="flex border-b border-white/10 bg-[#050505]">
           {steps.map((step, idx) => (
             <button
               key={idx}
               onClick={() => setActiveStep(idx)}
-              className={`flex-1 py-2 px-3 text-left font-code text-xs transition-colors border-r border-[#2d2d2d] last:border-r-0 ${
+              className={`flex-1 py-3 px-4 text-left font-code text-xs transition-all border-r border-white/10 last:border-r-0 cursor-pointer ${
                 activeStep === idx
-                  ? "bg-[#1c1b1b] text-[#adc6ff] font-semibold border-b-2 border-b-[#adc6ff]"
-                  : "text-[#8c909f] hover:text-[#e5e2e1] hover:bg-[#181818]"
+                  ? "bg-[#0a0a0a] text-white font-bold border-b-2 border-b-white"
+                  : "text-neutral-500 hover:text-neutral-300 hover:bg-white/[0.02]"
               }`}
             >
               Step 0{idx + 1}
@@ -73,45 +74,47 @@ export default function DemoVideoModal({ onClose }: DemoVideoModalProps) {
           ))}
         </div>
 
-        {/* Step Preview Canvas */}
-        <div className="p-6 space-y-4">
-          <div>
-            <h3 className="font-headline text-base font-bold text-[#e5e2e1] mb-1">
+        {/* Step Preview Canvas with Fixed Height */}
+        <div className="p-6 flex flex-col justify-between h-[280px]">
+          {/* Title & Description with Fixed Min-Height to Prevent Jumps */}
+          <div className="h-12 flex flex-col justify-center">
+            <h3 className="font-headline text-sm sm:text-base font-bold text-white mb-0.5 tracking-tight">
               {steps[activeStep].title}
             </h3>
-            <p className="text-xs text-[#c2c6d6]">{steps[activeStep].desc}</p>
+            <p className="text-xs text-neutral-400 leading-normal">{steps[activeStep].desc}</p>
           </div>
 
-          <div className="bg-[#0a0a0a] border border-[#2d2d2d] rounded-md p-4 font-code text-xs overflow-x-auto text-[#adc6ff]">
-            <pre>
-              <code>{steps[activeStep].code}</code>
+          {/* Code Box with Fixed Height (180px) and Scrollability */}
+          <div className="bg-[#000000] border border-white/10 rounded-xl p-4 font-code text-xs text-neutral-200 h-[190px] overflow-y-auto overflow-x-auto flex items-start">
+            <pre className="w-full">
+              <code className="leading-relaxed">{steps[activeStep].code}</code>
             </pre>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-[#2d2d2d] bg-[#181818] flex justify-between items-center">
+        <div className="p-4 sm:px-6 border-t border-white/10 bg-[#000000] flex justify-between items-center">
           <button
             onClick={() => setActiveStep((prev) => (prev + 1) % steps.length)}
-            className="text-xs font-code text-[#8c909f] hover:text-[#adc6ff] transition-colors flex items-center gap-1"
+            className="text-xs font-code text-neutral-400 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer py-1.5 px-2 rounded hover:bg-white/5"
           >
             <span>Next Feature</span>
             <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
           </button>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-1.5 text-xs text-[#c2c6d6] hover:text-white transition-colors"
+              className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-white transition-colors cursor-pointer rounded-full hover:bg-white/5"
             >
               Dismiss
             </button>
             <Link
-              href="/workspace/demo"
+              href="/workspaces"
               onClick={onClose}
-              className="px-4 py-1.5 bg-[#adc6ff] text-[#002e6a] font-semibold rounded text-xs hover:bg-[#d8e2ff] transition-colors flex items-center gap-1.5"
+              className="px-5 py-2 bg-white text-black font-semibold rounded-full text-xs hover:bg-neutral-200 transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
             >
               <span>Launch Live Workspace</span>
-              <span className="material-symbols-outlined text-[15px]">open_in_new</span>
+              <span className="material-symbols-outlined text-[14px]">open_in_new</span>
             </Link>
           </div>
         </div>

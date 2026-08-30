@@ -9,8 +9,10 @@ export interface WorkspaceFile {
 export interface RoomMember {
   id: string;
   name: string;
+  email?: string;
   color?: string;
   avatarColor?: string;
+  avatarUrl?: string;
   initials?: string;
   status?: string;
   cursor?: { line: number; col: number };
@@ -47,6 +49,7 @@ export interface TeamChatMessage {
   senderId: string;
   senderName: string;
   senderColor: string;
+  senderAvatarUrl?: string;
   content: string;
   codeRef?: TeamChatCodeRef;
   timestamp: string;

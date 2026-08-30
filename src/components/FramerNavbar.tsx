@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { getUserSession, UserSession } from "@/lib/authSession";
+import { getUserSession, logoutUser, UserSession } from "@/lib/authSession";
 
 interface FramerNavbarProps {
   onOpenBrief?: () => void;
@@ -12,16 +12,32 @@ interface FramerNavbarProps {
 export default function FramerNavbar({ onOpenBrief, onOpenSales }: FramerNavbarProps) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     setUser(getUserSession());
 
+    const handleAuthChange = () => {
+      setUser(getUserSession());
+    };
+
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };
+
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("codemesh:auth_change", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("codemesh:auth_change", handleAuthChange);
+    };
   }, []);
+
+  const handleLogout = () => {
+    logoutUser();
+    setShowUserMenu(false);
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4 sm:pt-6 pointer-events-none">
@@ -70,12 +86,57 @@ export default function FramerNavbar({ onOpenBrief, onOpenSales }: FramerNavbarP
         {/* Right Actions */}
         <div className="flex items-center gap-3">
           {user?.isLoggedIn ? (
-            <Link
-              href="/workspaces"
-              className="text-xs font-medium text-neutral-300 hover:text-white transition-colors hidden sm:inline"
-            >
-              Dashboard
-            </Link>
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/15 hover:border-white/30 transition-all text-xs font-medium text-white cursor-pointer"
+              >
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.handle}
+                    className="w-5 h-5 rounded-full object-cover border border-white/20"
+                  />
+                ) : (
+                  <div
+                    className="w-5 h-5 rounded-full text-[9px] font-bold text-white flex items-center justify-center"
+                    style={{ backgroundColor: user.avatarColor || "#0066FF" }}
+                  >
+                    {user.initials || "U"}
+                  </div>
+                )}
+                <span className="hidden sm:inline font-code truncate max-w-[110px]">
+                  @{user.handle}
+                </span>
+                <span className="material-symbols-outlined text-[14px] text-neutral-400">
+                  expand_more
+                </span>
+              </button>
+
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-[#0a0a0a] border border-white/15 shadow-2xl py-2 z-50 font-body text-xs backdrop-blur-2xl">
+                  <div className="px-4 py-2 border-b border-white/10">
+                    <div className="font-semibold text-white truncate">@{user.handle}</div>
+                    <div className="text-[10px] font-code text-neutral-500 truncate">{user.email}</div>
+                  </div>
+                  <Link
+                    href="/workspaces"
+                    onClick={() => setShowUserMenu(false)}
+                    className="w-full text-left px-4 py-2 text-neutral-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">grid_view</span>
+                    <span>Workspaces</span>
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-red-400 hover:bg-white/5 flex items-center gap-2 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">logout</span>
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <Link
               href="/auth"

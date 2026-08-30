@@ -28,7 +28,7 @@ export default function Hero3DCanvas() {
     const height = container.clientHeight || window.innerHeight;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000000, 0.0025);
+    scene.fog = new THREE.FogExp2(0x000000, 0.002);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.set(0, 0, 32);
@@ -44,97 +44,154 @@ export default function Hero3DCanvas() {
 
     container.appendChild(renderer.domElement);
 
-    const mainGroup = new THREE.Group();
-    scene.add(mainGroup);
+    const cosmicGroup = new THREE.Group();
+    scene.add(cosmicGroup);
 
-    // 1. Pure Monochrome Silver/White 3D Wireframe Geometry
-    // Outer Gyroscope Ring
-    const torusGeo1 = new THREE.TorusGeometry(8.5, 0.22, 30, 100);
-    const torusMat1 = new THREE.MeshStandardMaterial({
+    // ==========================================
+    // 1. CELESTIAL 3D PLANET (Main Orbital Sphere)
+    // ==========================================
+    const planetGroup = new THREE.Group();
+    planetGroup.position.set(15, 3, -6);
+    cosmicGroup.add(planetGroup);
+
+    // Planet Core Sphere (Luminous Wireframe Topography)
+    const planetGeo = new THREE.SphereGeometry(4.2, 36, 36);
+    const planetMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      emissive: 0x333333,
-      roughness: 0.1,
-      metalness: 0.95,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.28,
-    });
-    const torus1 = new THREE.Mesh(torusGeo1, torusMat1);
-    torus1.position.set(15, 3, -6);
-    torus1.rotation.x = Math.PI / 3;
-    mainGroup.add(torus1);
-
-    // Inner Floating Polyhedron (Monochrome Silver Wireframe)
-    const icosaGeo1 = new THREE.IcosahedronGeometry(4.0, 1);
-    const icosaMat1 = new THREE.MeshStandardMaterial({
-      color: 0xe4e4e7,
-      emissive: 0x52525b,
+      emissive: 0x222222,
       wireframe: true,
       transparent: true,
       opacity: 0.35,
+      roughness: 0.3,
+      metalness: 0.9,
     });
-    const icosa1 = new THREE.Mesh(icosaGeo1, icosaMat1);
-    icosa1.position.set(15, 3, -6);
-    mainGroup.add(icosa1);
+    const planet = new THREE.Mesh(planetGeo, planetMat);
+    planetGroup.add(planet);
 
-    // Left Secondary Depth Orbital Ring
-    const torusGeo2 = new THREE.TorusGeometry(7.2, 0.18, 24, 80);
-    const torusMat2 = new THREE.MeshStandardMaterial({
+    // Planet Inner Dense Core
+    const innerCoreGeo = new THREE.IcosahedronGeometry(3.0, 2);
+    const innerCoreMat = new THREE.MeshBasicMaterial({
       color: 0xd4d4d8,
-      emissive: 0x27272a,
       wireframe: true,
       transparent: true,
-      opacity: 0.2,
+      opacity: 0.18,
     });
-    const torus2 = new THREE.Mesh(torusGeo2, torusMat2);
-    torus2.position.set(-16, -4, -8);
-    torus2.rotation.y = Math.PI / 4;
-    mainGroup.add(torus2);
+    const innerCore = new THREE.Mesh(innerCoreGeo, innerCoreMat);
+    planetGroup.add(innerCore);
 
-    // 2. Subtle Monochrome Silver Particle Field
-    const particleCount = 450;
-    const particleGeometry = new THREE.BufferGeometry();
-    const particlePositions = new Float32Array(particleCount * 3);
+    // Primary Planetary Ring (Saturn-Style Planetary Disk)
+    const ringGeo = new THREE.RingGeometry(5.6, 8.8, 64);
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0x111111,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.28,
+      side: THREE.DoubleSide,
+    });
+    const planetRing = new THREE.Mesh(ringGeo, ringMat);
+    planetRing.rotation.x = Math.PI / 2.4;
+    planetRing.rotation.y = Math.PI / 8;
+    planetGroup.add(planetRing);
 
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 12 + Math.random() * 26;
-      particlePositions[i] = Math.cos(angle) * radius;
-      particlePositions[i + 1] = Math.sin(angle) * radius * 0.65;
-      particlePositions[i + 2] = (Math.random() - 0.5) * 20 - 4;
+    // Secondary Outer Orbit Gyroscopic Ring
+    const outerOrbitGeo = new THREE.TorusGeometry(10.2, 0.12, 16, 100);
+    const outerOrbitMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.15,
+      wireframe: true,
+    });
+    const outerOrbit = new THREE.Mesh(outerOrbitGeo, outerOrbitMat);
+    outerOrbit.rotation.x = Math.PI / 1.8;
+    planetGroup.add(outerOrbit);
+
+    // Orbiting Satellites (Active Mesh Nodes)
+    const satellites: THREE.Mesh[] = [];
+    const satelliteCount = 3;
+    for (let i = 0; i < satelliteCount; i++) {
+      const satGeo = new THREE.OctahedronGeometry(0.35);
+      const satMat = new THREE.MeshBasicMaterial({
+        color: i === 0 ? 0x0066ff : i === 1 ? 0xff7e33 : 0xffffff,
+        wireframe: true,
+      });
+      const sat = new THREE.Mesh(satGeo, satMat);
+      planetGroup.add(sat);
+      satellites.push(sat);
     }
 
-    particleGeometry.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
+    // ==========================================
+    // 2. SECONDARY DISTANT MOON / CELESTIAL NODE (Left)
+    // ==========================================
+    const moonGroup = new THREE.Group();
+    moonGroup.position.set(-16, -4, -8);
+    cosmicGroup.add(moonGroup);
 
-    const particleMaterial = new THREE.PointsMaterial({
+    const moonGeo = new THREE.SphereGeometry(2.4, 20, 20);
+    const moonMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.22,
+    });
+    const moon = new THREE.Mesh(moonGeo, moonMat);
+    moonGroup.add(moon);
+
+    const moonRingGeo = new THREE.RingGeometry(3.2, 4.4, 32);
+    const moonRing = new THREE.Mesh(moonRingGeo, ringMat);
+    moonRing.rotation.x = Math.PI / 3;
+    moonGroup.add(moonRing);
+
+    // ==========================================
+    // 3. COSMIC STARFIELD & CELESTIAL DUST FIELD
+    // ==========================================
+    const starCount = 600;
+    const starGeometry = new THREE.BufferGeometry();
+    const starPositions = new Float32Array(starCount * 3);
+
+    for (let i = 0; i < starCount * 3; i += 3) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 10 + Math.random() * 32;
+      starPositions[i] = Math.cos(angle) * radius;
+      starPositions[i + 1] = (Math.random() - 0.5) * 30;
+      starPositions[i + 2] = (Math.random() - 0.5) * 24 - 4;
+    }
+
+    starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
+
+    const starMaterial = new THREE.PointsMaterial({
       size: 0.16,
       color: 0xffffff,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.45,
       blending: THREE.AdditiveBlending,
     });
-    const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
-    mainGroup.add(particleSystem);
+    const starField = new THREE.Points(starGeometry, starMaterial);
+    cosmicGroup.add(starField);
 
-    // 3. Subtle Horizon Floor Grid (Monochrome)
-    const gridHelper = new THREE.GridHelper(100, 40, 0x52525b, 0x18181b);
+    // ==========================================
+    // 4. PLANETARY HORIZON GRID
+    // ==========================================
+    const gridHelper = new THREE.GridHelper(120, 40, 0x3f3f46, 0x18181b);
     gridHelper.position.y = -14;
     gridHelper.position.z = -6;
-    mainGroup.add(gridHelper);
+    cosmicGroup.add(gridHelper);
 
-    // 4. Monochrome Crisp White Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    // ==========================================
+    // 5. CRISP CELESTIAL LIGHTS
+    // ==========================================
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
-    const whiteLight1 = new THREE.PointLight(0xffffff, 3.0, 60);
-    whiteLight1.position.set(16, 8, 12);
-    scene.add(whiteLight1);
+    const starLight1 = new THREE.PointLight(0xffffff, 3.5, 70);
+    starLight1.position.set(16, 10, 14);
+    scene.add(starLight1);
 
-    const whiteLight2 = new THREE.PointLight(0xd4d4d8, 2.0, 60);
-    whiteLight2.position.set(-16, -6, 10);
-    scene.add(whiteLight2);
+    const starLight2 = new THREE.PointLight(0x0066ff, 1.5, 60);
+    starLight2.position.set(-16, -6, 10);
+    scene.add(starLight2);
 
-    // Mouse Tracking
+    // Mouse Tracking with smooth damping
     let targetMouseX = 0;
     let targetMouseY = 0;
     let currentMouseX = 0;
@@ -143,8 +200,8 @@ export default function Hero3DCanvas() {
     const handleMouseMove = (e: MouseEvent) => {
       const windowHalfX = window.innerWidth / 2;
       const windowHalfY = window.innerHeight / 2;
-      targetMouseX = (e.clientX - windowHalfX) * 0.0005;
-      targetMouseY = (e.clientY - windowHalfY) * 0.0005;
+      targetMouseX = (e.clientX - windowHalfX) * 0.0006;
+      targetMouseY = (e.clientY - windowHalfY) * 0.0006;
     };
 
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
@@ -169,15 +226,32 @@ export default function Hero3DCanvas() {
       currentMouseX += (targetMouseX - currentMouseX) * 0.04;
       currentMouseY += (targetMouseY - currentMouseY) * 0.04;
 
-      mainGroup.rotation.y = currentMouseX + elapsedTime * 0.02;
-      mainGroup.rotation.x = currentMouseY + Math.sin(elapsedTime * 0.12) * 0.02;
+      cosmicGroup.rotation.y = currentMouseX + elapsedTime * 0.015;
+      cosmicGroup.rotation.x = currentMouseY + Math.sin(elapsedTime * 0.1) * 0.02;
 
-      torus1.rotation.x = elapsedTime * 0.2;
-      torus1.rotation.y = elapsedTime * 0.25;
-      icosa1.rotation.y = -elapsedTime * 0.3;
+      // Rotate planet sphere & rings
+      planet.rotation.y = elapsedTime * 0.18;
+      innerCore.rotation.y = -elapsedTime * 0.25;
+      planetRing.rotation.z = elapsedTime * 0.08;
+      outerOrbit.rotation.z = -elapsedTime * 0.12;
 
-      torus2.rotation.z = -elapsedTime * 0.22;
-      particleSystem.rotation.y = -elapsedTime * 0.015;
+      // Orbit satellites around the planet
+      satellites.forEach((sat, idx) => {
+        const satAngle = elapsedTime * (0.6 + idx * 0.25) + (idx * Math.PI * 2) / satelliteCount;
+        const satDist = 7.0 + idx * 1.4;
+        sat.position.set(
+          Math.cos(satAngle) * satDist,
+          Math.sin(satAngle * 0.8) * 1.8,
+          Math.sin(satAngle) * satDist
+        );
+        sat.rotation.x = elapsedTime * 2;
+        sat.rotation.y = elapsedTime * 2;
+      });
+
+      // Rotate distant moon
+      moon.rotation.y = elapsedTime * 0.15;
+      moonRing.rotation.z = -elapsedTime * 0.1;
+      starField.rotation.y = -elapsedTime * 0.008;
 
       renderer.render(scene, camera);
     };
@@ -193,14 +267,19 @@ export default function Hero3DCanvas() {
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
-      torusGeo1.dispose();
-      torusMat1.dispose();
-      icosaGeo1.dispose();
-      icosaMat1.dispose();
-      torusGeo2.dispose();
-      torusMat2.dispose();
-      particleGeometry.dispose();
-      particleMaterial.dispose();
+      planetGeo.dispose();
+      planetMat.dispose();
+      innerCoreGeo.dispose();
+      innerCoreMat.dispose();
+      ringGeo.dispose();
+      ringMat.dispose();
+      outerOrbitGeo.dispose();
+      outerOrbitMat.dispose();
+      moonGeo.dispose();
+      moonMat.dispose();
+      moonRingGeo.dispose();
+      starGeometry.dispose();
+      starMaterial.dispose();
     };
   }, []);
 
@@ -210,8 +289,9 @@ export default function Hero3DCanvas() {
       className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
       aria-hidden="true"
     >
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-white/[0.04] blur-[160px] rounded-full -z-10 pointer-events-none" />
-      <div className="absolute top-1/3 right-4 w-[450px] h-[450px] bg-white/[0.03] blur-[160px] rounded-full -z-10 pointer-events-none" />
+      {/* Subtle Cosmic Atmospheric Glow Arcs */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[550px] bg-white/[0.04] blur-[160px] rounded-full -z-10 pointer-events-none" />
+      <div className="absolute top-1/3 right-4 w-[500px] h-[500px] bg-[#0066FF]/[0.05] blur-[170px] rounded-full -z-10 pointer-events-none" />
       <div className="absolute bottom-1/4 left-4 w-[450px] h-[400px] bg-white/[0.02] blur-[150px] rounded-full -z-10 pointer-events-none" />
 
       {webGLError && (

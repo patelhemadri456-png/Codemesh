@@ -13,8 +13,18 @@ export interface UserSession {
   createdAt: string;
 }
 
+export interface StoredAccount {
+  id: string;
+  handle: string;
+  email: string;
+  passwordHash: string;
+  createdAt: string;
+  avatarColor: string;
+}
+
 const STORAGE_KEY = "codemesh_user_session";
 const THEME_STORAGE_KEY = "codemesh_theme_preference";
+const ACCOUNTS_STORAGE_KEY = "codemesh_registered_accounts";
 
 const defaultGuestUser: UserSession = {
   id: "guest_user",
@@ -83,6 +93,7 @@ export function setUserSession(user: Partial<UserSession>): UserSession {
   const updated: UserSession = {
     ...current,
     ...user,
+    id: user.id || current.id || `usr_${Math.random().toString(36).substring(2, 9)}`,
     handle,
     initials,
     avatarColor: user.avatarColor || colors[colorIndex],
@@ -108,4 +119,75 @@ export function logoutUser(): void {
   } catch (e) {
     console.error("Failed to logout user:", e);
   }
+}
+
+// ----------------------------------------------------
+// Real Local Accounts Store (for actual verification)
+// ----------------------------------------------------
+
+export function getRegisteredAccounts(): StoredAccount[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn("Could not load accounts:", e);
+  }
+  return [];
+}
+
+export function registerLocalAccount(
+  handle: string,
+  email: string,
+  password: string
+): { success: boolean; error?: string; account?: StoredAccount } {
+  if (typeof window === "undefined") return { success: false, error: "Window unavailable" };
+
+  const accounts = getRegisteredAccounts();
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedHandle = handle.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+
+  if (accounts.some((acc) => acc.email.toLowerCase() === normalizedEmail)) {
+    return { success: false, error: "An account with this email already exists. Please sign in." };
+  }
+
+  const colors = ["#4d8eff", "#0066ff", "#10b981", "#ff7e33", "#a855f7"];
+  const colorIndex = Math.abs(normalizedHandle.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % colors.length);
+
+  const newAccount: StoredAccount = {
+    id: `usr_${Math.random().toString(36).substring(2, 9)}`,
+    handle: normalizedHandle || "engineer",
+    email: normalizedEmail,
+    passwordHash: btoa(password), // standard client encoding
+    createdAt: new Date().toISOString(),
+    avatarColor: colors[colorIndex],
+  };
+
+  accounts.push(newAccount);
+  try {
+    localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+  } catch (e) {
+    return { success: false, error: "Storage quota exceeded" };
+  }
+
+  return { success: true, account: newAccount };
+}
+
+export function verifyLocalCredentials(
+  email: string,
+  password: string
+): { success: boolean; error?: string; account?: StoredAccount } {
+  const accounts = getRegisteredAccounts();
+  const normalizedEmail = email.trim().toLowerCase();
+  const account = accounts.find((acc) => acc.email.toLowerCase() === normalizedEmail);
+
+  if (!account) {
+    return { success: false, error: "No account found with this email. Please create an account." };
+  }
+
+  if (account.passwordHash !== btoa(password)) {
+    return { success: false, error: "Incorrect password. Please try again." };
+  }
+
+  return { success: true, account };
 }

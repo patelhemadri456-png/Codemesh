@@ -61,27 +61,32 @@ export default function TeamDiscussionChat({
   const [inputContent, setInputContent] = useState("");
   const [attachedCode, setAttachedCode] = useState<TeamChatCodeRef | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [user, setUser] = useState(getUserSession());
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const user = getUserSession();
 
-  // Load per-room messages from storage
+  // Sync logged in user session
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`${STORAGE_PREFIX}${roomId}`);
-      if (stored) {
-        setMessages(JSON.parse(stored));
-      } else {
-        const defaults = initialSampleMessages[roomId] || initialSampleMessages.default;
-        setMessages(defaults);
-        localStorage.setItem(`${STORAGE_PREFIX}${roomId}`, JSON.stringify(defaults));
+    setUser(getUserSession());
+    const handleAuth = () => setUser(getUserSession());
+    window.addEventListener("codemesh:auth_change", handleAuth);
+    return () => window.removeEventListener("codemesh:auth_change", handleAuth);
+  }, []);
+
+  // Load chat history & subscribe to Supabase Realtime channel
+  useEffect(() => {
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}${roomId}`);
+    if (saved) {
+      try {
+        setMessages(JSON.parse(saved));
+      } catch {
+        setMessages(initialSampleMessages.default);
       }
-    } catch {
-      setMessages(initialSampleMessages.default);
+    } else {
+      const initial = initialSampleMessages[roomId] || initialSampleMessages.default;
+      setMessages(initial);
+      localStorage.setItem(`${STORAGE_PREFIX}${roomId}`, JSON.stringify(initial));
     }
-  }, [roomId]);
 
-  // Supabase Realtime & Tab-to-Tab Synchronization
-  useEffect(() => {
     if (isSupabaseConfigured && supabase) {
       const channel = supabase.channel(`room-chat:${roomId}`, {
         config: { broadcast: { self: false } },
@@ -155,12 +160,15 @@ export default function TeamDiscussionChat({
     if (e) e.preventDefault();
     if (!inputContent.trim() && !attachedCode) return;
 
+    const senderHandle = user.isLoggedIn ? user.handle : "YOU";
+
     const newMsg: TeamChatMessage = {
       id: `msg-${Date.now()}`,
       roomId,
       senderId: user.id || "guest",
-      senderName: user.handle || "YOU",
-      senderColor: user.avatarColor || "#4d8eff",
+      senderName: senderHandle,
+      senderColor: user.avatarColor || "#0066FF",
+      senderAvatarUrl: user.avatarUrl,
       content: inputContent.trim(),
       codeRef: attachedCode || undefined,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -173,33 +181,38 @@ export default function TeamDiscussionChat({
     setAttachedCode(null);
   };
 
-  const handleAddReaction = (messageId: string, emoji: string) => {
+  const handleReaction = (messageId: string, emoji: string) => {
+    const userHandle = user.isLoggedIn ? user.handle : "YOU";
+
     const updated = messages.map((m) => {
       if (m.id !== messageId) return m;
-      const currentReactions = m.reactions || [];
-      const existing = currentReactions.find((r) => r.emoji === emoji);
 
-      let newReactions;
-      if (existing) {
-        if (existing.users.includes(user.handle)) {
-          // Remove reaction
-          newReactions = currentReactions
-            .map((r) =>
-              r.emoji === emoji
-                ? { ...r, count: r.count - 1, users: r.users.filter((u) => u !== user.handle) }
-                : r
-            )
-            .filter((r) => r.count > 0);
+      const currentReactions = m.reactions || [];
+      const existingReactionIndex = currentReactions.findIndex((r) => r.emoji === emoji);
+
+      let newReactions: any[];
+      if (existingReactionIndex > -1) {
+        const reaction = currentReactions[existingReactionIndex];
+        const userHasReacted = reaction.users.includes(userHandle);
+
+        if (userHasReacted) {
+          const nextUsers = reaction.users.filter((u) => u !== userHandle);
+          if (nextUsers.length === 0) {
+            newReactions = currentReactions.filter((r) => r.emoji !== emoji);
+          } else {
+            newReactions = currentReactions.map((r, i) =>
+              i === existingReactionIndex ? { ...r, count: r.count - 1, users: nextUsers } : r
+            );
+          }
         } else {
-          // Add user to reaction
-          newReactions = currentReactions.map((r) =>
-            r.emoji === emoji
-              ? { ...r, count: r.count + 1, users: [...r.users, user.handle] }
+          newReactions = currentReactions.map((r, i) =>
+            i === existingReactionIndex
+              ? { ...r, count: r.count + 1, users: [...r.users, userHandle] }
               : r
           );
         }
       } else {
-        newReactions = [...currentReactions, { emoji, count: 1, users: [user.handle] }];
+        newReactions = [...currentReactions, { emoji, count: 1, users: [userHandle] }];
       }
 
       return { ...m, reactions: newReactions };
@@ -232,19 +245,19 @@ export default function TeamDiscussionChat({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#111113] text-[#ededed] font-body">
+    <div className="flex flex-col h-full bg-[#0a0a0a] text-white font-body border-l border-white/10">
       {/* Header Info */}
-      <div className="p-3 border-b border-white/10 bg-[#17171a] flex items-center justify-between">
+      <div className="p-3 border-b border-white/10 bg-[#000000] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[#adc6ff] text-[18px]">
+          <span className="material-symbols-outlined text-white text-[18px]">
             forum
           </span>
           <div>
-            <div className="font-code text-xs font-bold text-[#ededed] flex items-center gap-1.5">
+            <div className="font-code text-xs font-bold text-white flex items-center gap-1.5">
               <span>#room-discussion</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse"></span>
             </div>
-            <div className="text-[10px] text-[#727685] font-code">
+            <div className="text-[10px] text-neutral-500 font-code">
               {members.length} members connected in real-time
             </div>
           </div>
@@ -256,19 +269,23 @@ export default function TeamDiscussionChat({
             <div
               key={i}
               title={m.name}
-              className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border border-[#17171a] shadow"
-              style={{ backgroundColor: m.color }}
+              className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border border-black shadow overflow-hidden"
+              style={{ backgroundColor: m.avatarColor || "#0066FF" }}
             >
-              {m.name.slice(0, 2).toUpperCase()}
+              {m.avatarUrl ? (
+                <img src={m.avatarUrl} alt={m.name} className="w-full h-full object-cover" />
+              ) : (
+                m.initials || m.name.slice(0, 1)
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Messages Thread */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 font-code text-xs">
+      {/* Messages List */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 font-body text-xs">
         {messages.map((msg) => {
-          const isMe = msg.senderName === user.handle || msg.senderId === user.id;
+          const isMe = msg.senderName === user.handle || msg.senderId === user.id || msg.senderName === "YOU";
 
           return (
             <div
@@ -276,23 +293,27 @@ export default function TeamDiscussionChat({
               className={`flex flex-col group ${isMe ? "items-end" : "items-start"}`}
             >
               {/* Sender & Timestamp */}
-              <div className="flex items-center gap-1.5 mb-1 px-1 text-[10px] text-[#727685]">
+              <div className="flex items-center gap-1.5 mb-1 px-1 text-[10px] text-neutral-500">
                 <div
-                  className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white overflow-hidden shrink-0"
                   style={{ backgroundColor: msg.senderColor }}
                 >
-                  {msg.senderName.slice(0, 1).toUpperCase()}
+                  {msg.senderAvatarUrl ? (
+                    <img src={msg.senderAvatarUrl} alt={msg.senderName} className="w-full h-full object-cover" />
+                  ) : (
+                    msg.senderName.slice(0, 1).toUpperCase()
+                  )}
                 </div>
-                <span className="font-bold text-[#b0b4c3]">{msg.senderName}</span>
-                <span>&bull; {msg.timestamp}</span>
+                <span className="font-bold text-neutral-300">@{msg.senderName}</span>
+                <span>• {msg.timestamp}</span>
               </div>
 
               {/* Message Bubble */}
               <div
-                className={`max-w-[88%] p-2.5 rounded-xl border relative shadow-sm ${
+                className={`max-w-[88%] p-3 rounded-2xl border relative shadow-sm ${
                   isMe
-                    ? "bg-[#1e1e23] border-[#adc6ff]/40 text-[#ededed]"
-                    : "bg-[#17171a] border-white/10 text-[#ededed]"
+                    ? "bg-white/10 border-white/20 text-white rounded-br-none"
+                    : "bg-[#050505] border-white/10 text-neutral-200 rounded-bl-none"
                 }`}
               >
                 <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
@@ -301,17 +322,17 @@ export default function TeamDiscussionChat({
                 {msg.codeRef && (
                   <div
                     onClick={() => onOpenCodeRef && onOpenCodeRef(msg.codeRef!.fileName)}
-                    className="mt-2 p-2 rounded-lg bg-[#080809] border border-white/10 cursor-pointer hover:border-[#adc6ff]/50 transition-colors"
+                    className="mt-2 p-2 rounded-xl bg-[#000000] border border-white/15 cursor-pointer hover:border-white/30 transition-colors"
                   >
-                    <div className="flex items-center justify-between text-[10px] text-[#adc6ff] mb-1 font-bold">
+                    <div className="flex items-center justify-between text-[10px] text-white mb-1 font-bold">
                       <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px]">code</span>
+                        <span className="material-symbols-outlined text-[13px] text-[#0066FF]">code</span>
                         {msg.codeRef.fileName}
                       </span>
-                      <span className="text-[#727685]">{msg.codeRef.lines}</span>
+                      <span className="text-neutral-500 font-code">{msg.codeRef.lines}</span>
                     </div>
                     {msg.codeRef.snippet && (
-                      <pre className="text-[10px] text-[#b0b4c3] overflow-x-auto whitespace-pre">
+                      <pre className="text-[10px] text-neutral-400 overflow-x-auto whitespace-pre font-code">
                         <code>{msg.codeRef.snippet}</code>
                       </pre>
                     )}
@@ -320,36 +341,23 @@ export default function TeamDiscussionChat({
 
                 {/* Reactions list */}
                 {msg.reactions && msg.reactions.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5 pt-1 border-t border-white/5">
-                    {msg.reactions.map((r, rIdx) => (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {msg.reactions.map((reaction, idx) => (
                       <button
-                        key={rIdx}
-                        onClick={() => handleAddReaction(msg.id, r.emoji)}
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1 transition-colors ${
-                          r.users.includes(user.handle)
-                            ? "bg-[#001a42] border-[#00285d] text-[#adc6ff]"
-                            : "bg-[#0d0d0e] border-white/10 text-[#b0b4c3]"
+                        key={idx}
+                        onClick={() => handleReaction(msg.id, reaction.emoji)}
+                        className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 transition-all ${
+                          reaction.users.includes(user.handle)
+                            ? "bg-white/15 border-white/30 text-white font-bold"
+                            : "bg-[#000000] border-white/10 text-neutral-400 hover:text-white"
                         }`}
                       >
-                        <span>{r.emoji}</span>
-                        <span>{r.count}</span>
+                        <span>{reaction.emoji}</span>
+                        <span>{reaction.count}</span>
                       </button>
                     ))}
                   </div>
                 )}
-
-                {/* Action Hover Emoji Trigger */}
-                <div className="absolute -top-2.5 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-[#111113] border border-white/15 rounded-lg px-1.5 py-0.5 flex gap-1 shadow-lg">
-                  {["👍", "🚀", "🔥", "👀"].map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => handleAddReaction(msg.id, emoji)}
-                      className="hover:scale-125 transition-transform text-xs"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
           );
@@ -358,76 +366,48 @@ export default function TeamDiscussionChat({
       </div>
 
       {/* Input Area */}
-      <div className="p-3 border-t border-white/10 bg-[#17171a] space-y-2">
-        {/* Attached Code Chip */}
+      <form onSubmit={handleSendMessage} className="p-3 border-t border-white/10 bg-[#000000] space-y-2">
         {attachedCode && (
-          <div className="flex items-center justify-between px-2.5 py-1 rounded bg-[#080809] border border-[#adc6ff]/40 text-[11px] font-code text-[#adc6ff]">
-            <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px]">attachment</span>
-              Referencing {attachedCode.fileName} ({attachedCode.lines})
+          <div className="flex items-center justify-between bg-[#0a0a0a] border border-white/15 rounded-xl px-2.5 py-1.5 text-[10px] text-neutral-300">
+            <span className="flex items-center gap-1 font-code text-white">
+              <span className="material-symbols-outlined text-[14px] text-[#0066FF]">code</span>
+              {attachedCode.fileName} ({attachedCode.lines})
             </span>
             <button
+              type="button"
               onClick={() => setAttachedCode(null)}
-              className="text-[#727685] hover:text-red-400"
+              className="text-neutral-500 hover:text-white"
             >
               <span className="material-symbols-outlined text-[14px]">close</span>
             </button>
           </div>
         )}
 
-        {/* Quick Action Bar */}
-        <div className="flex items-center gap-2 text-[11px] font-code text-[#727685]">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Type a message or discuss code..."
+            value={inputContent}
+            onChange={(e) => setInputContent(e.target.value)}
+            className="flex-1 bg-[#050505] border border-white/15 rounded-full px-3.5 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-white/30"
+          />
           <button
             type="button"
             onClick={handleAttachActiveCode}
-            disabled={!activeFileName}
-            className="flex items-center gap-1 hover:text-[#adc6ff] transition-colors disabled:opacity-40"
-            title="Attach active file code snippet"
+            title="Attach active file snippet"
+            className="p-2 rounded-full border border-white/10 hover:border-white/25 text-neutral-400 hover:text-white bg-white/5 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[15px]">code_blocks</span>
-            <span>Attach @{activeFileName || "file"}</span>
+            <span className="material-symbols-outlined text-[16px]">attachment</span>
           </button>
-          <span>&bull;</span>
-          <button
-            type="button"
-            onClick={() => setInputContent((prev) => `${prev} @Sarah `)}
-            className="hover:text-[#adc6ff]"
-          >
-            @Sarah
-          </button>
-          <button
-            type="button"
-            onClick={() => setInputContent((prev) => `${prev} @Alex `)}
-            className="hover:text-[#adc6ff]"
-          >
-            @Alex
-          </button>
-          <button
-            type="button"
-            onClick={() => setInputContent((prev) => `${prev} @all `)}
-            className="hover:text-[#adc6ff]"
-          >
-            @all
-          </button>
-        </div>
-
-        {/* Input Form */}
-        <form onSubmit={handleSendMessage} className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Discuss with team... (Press Enter to send)"
-            value={inputContent}
-            onChange={(e) => setInputContent(e.target.value)}
-            className="flex-1 bg-[#080809] border border-white/10 rounded-lg px-3 py-2 text-xs font-code text-[#ededed] focus:border-[#adc6ff] focus:outline-none transition-colors placeholder:text-[#727685]"
-          />
           <button
             type="submit"
-            className="bg-[#adc6ff] text-[#002e6a] p-2 rounded-lg hover:bg-[#d8e2ff] transition-all flex items-center justify-center font-bold shadow-[0_0_12px_rgba(173,198,255,0.2)]"
+            disabled={!inputContent.trim() && !attachedCode}
+            className="px-3.5 py-2 rounded-full bg-white text-black font-bold text-xs hover:bg-neutral-200 transition-all cursor-pointer disabled:opacity-40"
           >
-            <span className="material-symbols-outlined text-[16px]">send</span>
+            Send
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 }
