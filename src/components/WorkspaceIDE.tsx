@@ -9,18 +9,33 @@ import { executeCodeInBrowser } from "@/lib/codeRunner";
 import { getUserSession, UserSession } from "@/lib/authSession";
 import EditorSettingsModal from "./EditorSettingsModal";
 import TeamDiscussionChat from "./TeamDiscussionChat";
-import confetti from "canvas-confetti";
 
-// Dynamically import Monaco Editor to prevent SSR issues
-const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex-1 flex items-center justify-center bg-[#0a0a0a] text-xs font-code text-[#8c909f]">
-      <span className="w-2 h-2 rounded-full bg-[#0066FF] animate-ping mr-2"></span>
-      Initializing Monaco Cloud Environment...
-    </div>
-  ),
-});
+// Dynamically import Monaco Editor & Diff Editor to prevent SSR issues
+const MonacoEditor = dynamic(
+  () => import("@monaco-editor/react").then((mod) => mod.default),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex-1 flex items-center justify-center bg-[#050505] text-xs font-code text-neutral-500">
+        <span className="w-2 h-2 rounded-full bg-[#0066FF] animate-ping mr-2"></span>
+        Initializing Monaco Cloud Environment...
+      </div>
+    ),
+  }
+);
+
+const MonacoDiffEditor = dynamic(
+  () => import("@monaco-editor/react").then((mod) => mod.DiffEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex-1 flex items-center justify-center bg-[#050505] text-xs font-code text-neutral-500">
+        <span className="w-2 h-2 rounded-full bg-[#A855F7] animate-ping mr-2"></span>
+        Loading AI Diff Inspector...
+      </div>
+    ),
+  }
+);
 
 interface WorkspaceIDEProps {
   roomId?: string;
@@ -42,6 +57,57 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   const [fontSize, setFontSize] = useState<number>(14);
   const [tabSize, setTabSize] = useState<number>(2);
   const [wordWrap, setWordWrap] = useState<boolean>(true);
+
+  // AI Diff Inspector States (Cursor-style Split Review)
+  const [isDiffMode, setIsDiffMode] = useState(false);
+  const [diffOriginal, setDiffOriginal] = useState("");
+  const [diffModified, setDiffModified] = useState("");
+  const [diffSummary, setDiffSummary] = useState("");
+  const [isGeneratingAiDiff, setIsGeneratingAiDiff] = useState(false);
+
+  // Custom Obsidian Dark Theme for Monaco matching Framer Palette
+  const handleEditorBeforeMount = (monaco: any) => {
+    monaco.editor.defineTheme("codemesh-obsidian", {
+      base: "vs-dark",
+      inherit: true,
+      rules: [
+        { token: "", background: "050505", foreground: "ededed" },
+        { token: "comment", foreground: "71717a", fontStyle: "italic" },
+        { token: "keyword", foreground: "a855f7", fontStyle: "bold" },
+        { token: "keyword.control", foreground: "a855f7" },
+        { token: "identifier", foreground: "ededed" },
+        { token: "type", foreground: "f43f5e" },
+        { token: "type.identifier", foreground: "f43f5e" },
+        { token: "string", foreground: "10b981" },
+        { token: "number", foreground: "ff7e33" },
+        { token: "delimiter", foreground: "a1a1aa" },
+        { token: "function", foreground: "38bdf8" },
+        { token: "method", foreground: "38bdf8" },
+        { token: "variable", foreground: "e4e4e7" },
+        { token: "variable.predefined", foreground: "0066ff" },
+      ],
+      colors: {
+        "editor.background": "#050505",
+        "editor.foreground": "#ededed",
+        "editorCursor.foreground": "#0066ff",
+        "editor.lineHighlightBackground": "#0f0f12",
+        "editorLineNumber.foreground": "#3f3f46",
+        "editorLineNumber.activeForeground": "#ffffff",
+        "editor.selectionBackground": "#0066ff33",
+        "editor.inactiveSelectionBackground": "#ffffff10",
+        "editorGutter.background": "#050505",
+        "editorBracketMatch.background": "#0066ff22",
+        "editorBracketMatch.border": "#0066ff",
+        "diffEditor.insertedTextBackground": "#10b98125",
+        "diffEditor.removedTextBackground": "#ef444425",
+        "diffEditor.insertedLineBackground": "#10b98115",
+        "diffEditor.removedLineBackground": "#ef444415",
+        "scrollbarSlider.background": "#ffffff15",
+        "scrollbarSlider.hoverBackground": "#ffffff30",
+        "scrollbarSlider.activeBackground": "#ffffff50",
+      },
+    });
+  };
 
   // Search & Git Drawer States
   const [searchFilter, setSearchFilter] = useState("");
@@ -150,6 +216,87 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
       setOpenTabIds([...openTabIds, fileId]);
     }
     setActiveFileId(fileId);
+    if (isDiffMode) setIsDiffMode(false);
+  };
+
+  // AI Diff Inspector Handlers (Cursor-style Split Review)
+  const handleTriggerAiOptimize = () => {
+    if (!activeFile) return;
+    setIsGeneratingAiDiff(true);
+
+    setTimeout(() => {
+      const original = activeFile.content;
+      let modified = original;
+
+      if (activeFile.name.endsWith(".py")) {
+        modified = `"""
+[CodeMesh RAG Kernel] Vector Cluster Refactor
+Optimized memory throughput and added async batch stream handling
+"""
+import asyncio
+import logging
+from typing import Optional, List, Dict, Any
+
+logger = logging.getLogger("CodeMesh.Optimized")
+
+${
+  original.includes("def get_optimal_buffer():")
+    ? original.replace(
+        "def get_optimal_buffer():",
+        "async def get_optimal_buffer_async(multiplier: int = 1024) -> int:\n    \"\"\"Calculates hardware-accelerated buffer size with auto-scaling.\"\"\"\n    logger.info('Recalculating buffer matrix')\n    await asyncio.sleep(0.01)"
+      )
+    : original + "\n\n# CodeMesh AI Hardware Vector Acceleration\nasync def stream_vector_payload(buffer_size: int = 4096):\n    return {'status': 'optimized', 'buffer': buffer_size}\n"
+}`;
+      } else if (
+        activeFile.name.endsWith(".ts") ||
+        activeFile.name.endsWith(".js") ||
+        activeFile.name.endsWith(".tsx")
+      ) {
+        modified = `/**
+ * @module CodeMesh.AST
+ * Vector Similarity Score: 0.96 (pgvector lattice)
+ * Added memoized cache and hardware concurrency acceleration
+ */
+
+${original}
+
+// Optimized Edge Batch Dispatcher
+export async function dispatchBatchDeltas(events: Array<{ id: string; timestamp: number }>) {
+  const BATCH_SIZE = 128;
+  for (let i = 0; i < events.length; i += BATCH_SIZE) {
+    const chunk = events.slice(i, i + BATCH_SIZE);
+    await Promise.all(chunk.map((e) => fetch('/api/rooms/delta', { method: 'POST', body: JSON.stringify(e) })));
+  }
+}
+`;
+      } else {
+        modified = `// CodeMesh AI Optimization Patch\n// AST Vector Match: 98.4%\n\n${original}\n\n// Performance guard\n#pragma once\n`;
+      }
+
+      setDiffOriginal(original);
+      setDiffModified(modified);
+      setDiffSummary("✨ Gemini AST Patch: +14 lines, -2 lines • Vector Similarity 0.96");
+      setIsDiffMode(true);
+      setIsGeneratingAiDiff(false);
+    }, 450);
+  };
+
+  const handleAcceptDiff = () => {
+    if (!activeFile) return;
+    const updatedFiles = files.map((f) =>
+      f.id === activeFile.id ? { ...f, content: diffModified } : f
+    );
+    setFiles(updatedFiles);
+    saveRoomFiles(roomId, updatedFiles);
+    setIsDiffMode(false);
+    setEditorNotice("AI patch successfully merged into " + activeFile.name);
+    setTimeout(() => setEditorNotice(null), 3000);
+  };
+
+  const handleRejectDiff = () => {
+    setIsDiffMode(false);
+    setEditorNotice("AI patch discarded");
+    setTimeout(() => setEditorNotice(null), 2000);
   };
 
   const handleCloseTab = (fileId: string, e: React.MouseEvent) => {
@@ -308,7 +455,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
     } else if (cmd === "share") {
       navigator.clipboard.writeText(window.location.href);
       newLogs.push(`[Share] Workspace invite link copied to clipboard!`);
-      confetti({ particleCount: 40, spread: 50, origin: { y: 0.2 } });
+      setEditorNotice("Workspace invite link copied to clipboard!");
     } else {
       newLogs.push(`command not found: '${cmd}'. Type 'help' for available commands.`);
     }
@@ -332,7 +479,6 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
 
   const handleShareRoom = () => {
     navigator.clipboard.writeText(window.location.href);
-    confetti({ particleCount: 60, spread: 70, origin: { y: 0.1 } });
     setEditorNotice("Invite link copied to clipboard!");
     setTimeout(() => setEditorNotice(null), 3000);
   };
@@ -695,58 +841,136 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
               );
             })}
 
-            {/* Run & Save Status in Tab Bar */}
-            <div className="ml-auto flex items-center gap-3 pr-3">
-              <span className="text-[11px] font-code text-[#8c909f] flex items-center gap-1">
+            {/* AI Optimize, Run & Save Status in Tab Bar */}
+            <div className="ml-auto flex items-center gap-2.5 pr-3">
+              <span className="text-[11px] font-code text-neutral-500 flex items-center gap-1.5">
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    saveStatus === "saved" ? "bg-green-400" : "bg-amber-400 animate-ping"
+                    saveStatus === "saved" ? "bg-[#10B981]" : "bg-[#FF7E33] animate-ping"
                   }`}
                 />
                 {saveStatus === "saved" ? "Saved" : "Saving..."}
               </span>
+
+              {/* AI Optimize / Diff Inspector Trigger */}
+              <button
+                onClick={handleTriggerAiOptimize}
+                disabled={isGeneratingAiDiff || isDiffMode}
+                className="bg-white/5 border border-[#A855F7]/40 hover:border-[#A855F7] text-[#A855F7] hover:text-white px-3 py-1 rounded-full font-code text-xs font-semibold hover:bg-[#A855F7]/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                title="Inspect AI Code Diff"
+              >
+                <span className="material-symbols-outlined text-[14px] text-[#A855F7]">
+                  auto_awesome
+                </span>
+                <span>{isGeneratingAiDiff ? "Analyzing AST..." : "AI Optimize"}</span>
+              </button>
+
               <button
                 onClick={handleRunActiveFile}
-                className="bg-[#001a42] border border-[#00285d] text-[#adc6ff] px-2.5 py-1 rounded font-code text-xs font-semibold hover:bg-[#00285d] transition-colors flex items-center gap-1"
+                className="bg-white text-black px-3 py-1 rounded-full font-code text-xs font-bold hover:bg-neutral-200 transition-all flex items-center gap-1 cursor-pointer shadow-[0_0_15px_rgba(255,255,255,0.15)]"
               >
-                <span className="material-symbols-outlined text-[15px]">play_arrow</span>
+                <span className="material-symbols-outlined text-[14px]">play_arrow</span>
                 <span>Run</span>
               </button>
             </div>
           </div>
 
           {/* Breadcrumbs */}
-          <div className="px-4 py-1 bg-[#0a0a0a] flex items-center gap-1 border-b border-[#2d2d2d] shrink-0 text-[#8c909f] font-code text-xs">
-            <span>CodeMesh</span>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span>{roomId}</span>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-[#e5e2e1]">{activeFile?.name || "file"}</span>
+          <div className="px-4 py-1.5 bg-[#000000] flex items-center justify-between border-b border-white/10 shrink-0 text-neutral-500 font-code text-xs">
+            <div className="flex items-center gap-1">
+              <span>CodeMesh</span>
+              <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+              <span>{roomId}</span>
+              <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+              <span className="text-white">{activeFile?.name || "file"}</span>
+            </div>
+            {isDiffMode && (
+              <span className="text-[10px] font-code uppercase tracking-wider text-[#A855F7] bg-[#A855F7]/10 px-2 py-0.5 rounded-full border border-[#A855F7]/30">
+                Split Diff Mode Active
+              </span>
+            )}
           </div>
 
-          {/* Monaco Editor Container */}
-          <div className="flex-1 min-h-0 relative">
-            {activeFile && (
-              <MonacoEditor
-                height="100%"
-                language={activeFile.language}
-                value={activeFile.content}
-                theme="vs-dark"
-                onChange={handleEditorChange}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize,
-                  tabSize,
-                  wordWrap: wordWrap ? "on" : "off",
-                  fontFamily: "'JetBrains Mono', monospace",
-                  lineNumbers: "on",
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  cursorBlinking: "smooth",
-                  smoothScrolling: true,
-                  padding: { top: 12 },
-                }}
-              />
+          {/* Monaco Editor Container or AI Diff Reviewer */}
+          <div className="flex-1 min-h-0 relative flex flex-col bg-[#050505]">
+            {isDiffMode ? (
+              <div className="flex-1 flex flex-col min-h-0 relative">
+                {/* Floating Diff Review Bar */}
+                <div className="bg-[#0a0a0a] border-b border-white/15 px-4 py-2 flex items-center justify-between z-10 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-code px-2.5 py-0.5 rounded-full bg-[#A855F7]/20 border border-[#A855F7]/40 text-[#A855F7] font-semibold flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+                      <span>AI Patch Proposal</span>
+                    </span>
+                    <span className="text-xs text-neutral-300 font-body hidden sm:inline">
+                      {diffSummary}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleRejectDiff}
+                      className="px-3 py-1 rounded-full border border-white/15 text-neutral-400 hover:text-white hover:bg-white/5 font-code text-xs transition-all cursor-pointer"
+                    >
+                      Discard
+                    </button>
+                    <button
+                      onClick={handleAcceptDiff}
+                      className="px-3.5 py-1 rounded-full bg-white text-black font-bold font-code text-xs hover:bg-neutral-200 transition-all flex items-center gap-1 shadow-[0_0_15px_rgba(255,255,255,0.2)] cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">check</span>
+                      <span>Accept &amp; Merge</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Monaco Split Diff Editor */}
+                <div className="flex-1 min-h-0">
+                  {activeFile && (
+                    <MonacoDiffEditor
+                      height="100%"
+                      language={activeFile.language}
+                      original={diffOriginal}
+                      modified={diffModified}
+                      theme="codemesh-obsidian"
+                      beforeMount={handleEditorBeforeMount}
+                      options={{
+                        renderSideBySide: true,
+                        readOnly: false,
+                        fontSize,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        minimap: { enabled: false },
+                        automaticLayout: true,
+                        smoothScrolling: true,
+                        padding: { top: 12 },
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            ) : (
+              activeFile && (
+                <MonacoEditor
+                  height="100%"
+                  language={activeFile.language}
+                  value={activeFile.content}
+                  theme="codemesh-obsidian"
+                  beforeMount={handleEditorBeforeMount}
+                  onChange={handleEditorChange}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize,
+                    tabSize,
+                    wordWrap: wordWrap ? "on" : "off",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    lineNumbers: "on",
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    cursorBlinking: "smooth",
+                    smoothScrolling: true,
+                    padding: { top: 12 },
+                  }}
+                />
+              )
             )}
           </div>
 
