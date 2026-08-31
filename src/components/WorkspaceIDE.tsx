@@ -47,7 +47,7 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   const [openTabIds, setOpenTabIds] = useState<string[]>(["f1"]);
   const [activeTabPanel, setActiveTabPanel] = useState<"terminal" | "output" | "problems">("terminal");
   const [activeActivity, setActiveActivity] = useState<"explorer" | "search" | "git" | "run">("explorer");
-  const [showChatPanel, setShowChatPanel] = useState(true);
+  const [showChatPanel, setShowChatPanel] = useState(false); // Closed by default for clean distraction-free coding
   const [editorNotice, setEditorNotice] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
   const [user, setUser] = useState<UserSession>(getUserSession());
@@ -175,6 +175,24 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
       document.body.style.userSelect = "";
     };
   }, [isDraggingTerminal, isTerminalMaximized]);
+
+  // Global Keyboard Shortcuts (Ctrl/Cmd + Shift + C for Team Chat, Esc to close)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        setShowChatPanel((prev) => !prev);
+      }
+      if (e.key === "Escape" && showChatPanel) {
+        const target = e.target as HTMLElement;
+        if (target?.tagName !== "INPUT" && target?.tagName !== "TEXTAREA") {
+          setShowChatPanel(false);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showChatPanel]);
 
   // Load initial dynamic files per room
   useEffect(() => {
@@ -595,14 +613,15 @@ export async function dispatchBatchDeltas(events: Array<{ id: string; timestamp:
 
             <button
               onClick={() => setShowChatPanel(!showChatPanel)}
-              className={`w-full flex justify-center py-2.5 transition-colors ${
+              className={`w-full flex flex-col items-center justify-center py-2.5 transition-colors relative ${
                 showChatPanel
                   ? "border-l-2 border-[#adc6ff] bg-[#adc6ff]/20 text-[#adc6ff]"
                   : "text-[#8c909f] hover:text-[#e5e2e1] hover:bg-[#201f1f]"
               }`}
-              title="Toggle Team Chat"
+              title="Toggle Team Discussion Chat (Ctrl+Shift+C)"
             >
               <span className="material-symbols-outlined text-[19px]">forum</span>
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-400 ring-2 ring-[#101010]" />
             </button>
           </div>
 
@@ -907,12 +926,28 @@ export async function dispatchBatchDeltas(events: Array<{ id: string; timestamp:
                 <span>{isGeneratingAiDiff ? "Analyzing AST..." : "AI Optimize"}</span>
               </button>
 
+              {/* Run Active File Button */}
               <button
                 onClick={handleRunActiveFile}
                 className="bg-white text-black px-3 py-1 rounded-full font-code text-xs font-bold hover:bg-neutral-200 transition-all flex items-center gap-1 cursor-pointer shadow-[0_0_15px_rgba(255,255,255,0.15)]"
               >
                 <span className="material-symbols-outlined text-[14px]">play_arrow</span>
                 <span>Run</span>
+              </button>
+
+              {/* Toggle Team Chat Quick Button */}
+              <button
+                onClick={() => setShowChatPanel(!showChatPanel)}
+                className={`px-2.5 py-1 rounded-full text-xs font-code flex items-center gap-1.5 transition-all border cursor-pointer ${
+                  showChatPanel
+                    ? "bg-[#0066FF]/20 border-[#0066FF] text-[#adc6ff]"
+                    : "bg-[#181818] border-white/10 text-neutral-400 hover:text-white hover:border-white/25"
+                }`}
+                title="Toggle Team Discussion (Ctrl+Shift+C)"
+              >
+                <span className="material-symbols-outlined text-[14px]">forum</span>
+                <span className="hidden sm:inline">{showChatPanel ? "Hide Chat" : "Team Chat"}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
               </button>
             </div>
           </div>
@@ -1196,6 +1231,20 @@ export async function dispatchBatchDeltas(events: Array<{ id: string; timestamp:
                 <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
                 <span>Gemini 2.0 Flash ⚡</span>
               </span>
+
+              {/* Team Chat Status Bar Trigger */}
+              <button
+                onClick={() => setShowChatPanel(!showChatPanel)}
+                className={`flex items-center gap-1.5 cursor-pointer px-1.5 py-0.5 rounded transition-colors ${
+                  showChatPanel ? "text-[#adc6ff] bg-white/10" : "text-neutral-400 hover:text-white hover:bg-white/5"
+                }`}
+                title="Toggle Team Discussion Chat (Ctrl+Shift+C)"
+              >
+                <span className="material-symbols-outlined text-[13px]">forum</span>
+                <span>Chat ({members.length})</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              </button>
+
               <span className="text-neutral-500">4.2ms</span>
             </div>
           </footer>
@@ -1205,21 +1254,22 @@ export async function dispatchBatchDeltas(events: Array<{ id: string; timestamp:
         {showChatPanel && (
           <div className="w-80 md:w-96 bg-[#181818] border-l border-[#2d2d2d] flex flex-col shrink-0">
             {/* Team Chat Header */}
-            <div className="border-b border-[#2d2d2d] flex items-center justify-between bg-[#121212] px-3 py-2">
+            <div className="border-b border-[#2d2d2d] flex items-center justify-between bg-[#121212] px-3 py-2 select-none">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[17px] text-[#adc6ff]">forum</span>
                 <span className="font-code text-xs font-semibold text-[#e5e2e1]">Team Discussion</span>
                 <span className="flex items-center gap-1 text-[10px] text-green-400 bg-green-950/40 border border-green-800/40 px-1.5 py-0.5 rounded font-code">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                  Live
+                  {members.length} Live
                 </span>
               </div>
 
               <button
                 onClick={() => setShowChatPanel(false)}
-                className="text-[#8c909f] hover:text-[#e5e2e1] p-1 transition-colors"
-                title="Collapse Chat"
+                className="text-[#8c909f] hover:text-[#e5e2e1] p-1 rounded hover:bg-white/10 transition-colors cursor-pointer flex items-center gap-1 text-xs font-code"
+                title="Collapse Chat (Esc)"
               >
+                <span className="text-[10px] text-neutral-500 hidden sm:inline">Esc</span>
                 <span className="material-symbols-outlined text-[16px]">close</span>
               </button>
             </div>
