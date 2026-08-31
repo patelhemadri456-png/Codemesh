@@ -52,6 +52,12 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
   const [user, setUser] = useState<UserSession>(getUserSession());
 
+  // Terminal Extensibility & Resizing States
+  const [terminalHeight, setTerminalHeight] = useState<number>(240);
+  const [isDraggingTerminal, setIsDraggingTerminal] = useState(false);
+  const [isTerminalMaximized, setIsTerminalMaximized] = useState(false);
+  const [showBottomPanel, setShowBottomPanel] = useState(true);
+
   // Editor Settings
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [fontSize, setFontSize] = useState<number>(14);
@@ -133,6 +139,42 @@ export default function WorkspaceIDE({ roomId = "workspace-default" }: Workspace
     window.addEventListener("codemesh:auth_change", handleAuth);
     return () => window.removeEventListener("codemesh:auth_change", handleAuth);
   }, []);
+
+  // Draggable Terminal Resizing Mouse Events
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingTerminal) return;
+      const windowHeight = window.innerHeight;
+      const newHeight = windowHeight - e.clientY - 24; // account for footer status bar
+      if (newHeight >= 90 && newHeight <= windowHeight * 0.82) {
+        setTerminalHeight(newHeight);
+        if (isTerminalMaximized) setIsTerminalMaximized(false);
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isDraggingTerminal) {
+        setIsDraggingTerminal(false);
+      }
+    };
+
+    if (isDraggingTerminal) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
+    } else {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isDraggingTerminal, isTerminalMaximized]);
 
   // Load initial dynamic files per room
   useEffect(() => {
@@ -974,106 +1016,189 @@ export async function dispatchBatchDeltas(events: Array<{ id: string; timestamp:
             )}
           </div>
 
-          {/* Bottom Terminal Panel */}
-          <div className="h-44 bg-[#0a0a0a] border-t border-[#2d2d2d] flex flex-col shrink-0">
-            <div className="bg-[#121212] px-4 flex items-center border-b border-[#2d2d2d] shrink-0">
-              <button
-                onClick={() => setActiveTabPanel("terminal")}
-                className={`py-1.5 px-3 font-code text-xs transition-colors ${
-                  activeTabPanel === "terminal"
-                    ? "border-b-2 border-[#adc6ff] text-[#adc6ff] font-semibold"
-                    : "text-[#8c909f] hover:text-[#e5e2e1]"
-                }`}
+          {/* Resizable Terminal Panel */}
+          {showBottomPanel && (
+            <>
+              {/* Drag Handle Bar */}
+              <div
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setIsDraggingTerminal(true);
+                }}
+                onDoubleClick={() => setIsTerminalMaximized(!isTerminalMaximized)}
+                className="h-[5px] w-full bg-[#1e1e23] hover:bg-[#0066FF] active:bg-[#0066FF] cursor-row-resize transition-all shrink-0 z-20 flex items-center justify-center group"
+                title="Drag to resize terminal height (Double click to toggle maximize)"
               >
-                TERMINAL
-              </button>
-              <button
-                onClick={() => setActiveTabPanel("output")}
-                className={`py-1.5 px-3 font-code text-xs transition-colors ${
-                  activeTabPanel === "output"
-                    ? "border-b-2 border-[#adc6ff] text-[#adc6ff] font-semibold"
-                    : "text-[#8c909f] hover:text-[#e5e2e1]"
-                }`}
-              >
-                OUTPUT
-              </button>
-              <button
-                onClick={() => setActiveTabPanel("problems")}
-                className={`py-1.5 px-3 font-code text-xs transition-colors ${
-                  activeTabPanel === "problems"
-                    ? "border-b-2 border-[#adc6ff] text-[#adc6ff] font-semibold"
-                    : "text-[#8c909f] hover:text-[#e5e2e1]"
-                }`}
-              >
-                PROBLEMS (0)
-              </button>
-              <div className="ml-auto flex gap-2">
-                <button
-                  onClick={() =>
-                    setTerminalHistory((prev) => [
-                      ...prev,
-                      `user@codemesh:~/${roomId}$ # New Shell instance spawned`,
-                      `user@codemesh:~/${roomId}$ `,
-                    ])
-                  }
-                  className="material-symbols-outlined text-[16px] text-[#8c909f] hover:text-[#adc6ff]"
-                  title="New Terminal"
-                >
-                  add
-                </button>
-                <button
-                  onClick={() => setTerminalHistory([`user@codemesh:~/${roomId}$ `])}
-                  className="material-symbols-outlined text-[16px] text-[#8c909f] hover:text-[#adc6ff]"
-                  title="Clear Terminal"
-                >
-                  delete
-                </button>
+                <div className="w-10 h-[2px] rounded-full bg-white/20 group-hover:bg-white transition-colors" />
               </div>
-            </div>
 
-            <div className="flex-1 p-3 font-code text-xs text-[#e5e2e1] overflow-y-auto leading-relaxed">
-              {activeTabPanel === "terminal" && (
-                <div>
-                  {terminalHistory.map((line, idx) => (
-                    <div key={idx} className="whitespace-pre-wrap">
-                      {line.startsWith("user@codemesh") ? (
-                        <span className="text-[#8c909f]">{line}</span>
-                      ) : line.includes("[CodeMesh") || line.includes("✓") ? (
-                        <span className="text-[#adc6ff]">{line}</span>
-                      ) : line.includes("[Error]") || line.includes("[Runtime Exception]") ? (
-                        <span className="text-red-400">{line}</span>
-                      ) : (
-                        <span>{line}</span>
-                      )}
+              {/* Bottom Terminal Body */}
+              <div
+                style={{
+                  height: isTerminalMaximized ? "75%" : `${terminalHeight}px`,
+                }}
+                className="bg-[#0a0a0a] flex flex-col shrink-0 min-h-[90px] max-h-[82vh] transition-[height] duration-75"
+              >
+                <div className="bg-[#121212] px-4 flex items-center border-b border-[#2d2d2d] shrink-0 select-none">
+                  <button
+                    onClick={() => setActiveTabPanel("terminal")}
+                    className={`py-1.5 px-3 font-code text-xs transition-colors cursor-pointer ${
+                      activeTabPanel === "terminal"
+                        ? "border-b-2 border-[#adc6ff] text-[#adc6ff] font-semibold"
+                        : "text-[#8c909f] hover:text-[#e5e2e1]"
+                    }`}
+                  >
+                    TERMINAL
+                  </button>
+                  <button
+                    onClick={() => setActiveTabPanel("output")}
+                    className={`py-1.5 px-3 font-code text-xs transition-colors cursor-pointer ${
+                      activeTabPanel === "output"
+                        ? "border-b-2 border-[#adc6ff] text-[#adc6ff] font-semibold"
+                        : "text-[#8c909f] hover:text-[#e5e2e1]"
+                    }`}
+                  >
+                    OUTPUT
+                  </button>
+                  <button
+                    onClick={() => setActiveTabPanel("problems")}
+                    className={`py-1.5 px-3 font-code text-xs transition-colors cursor-pointer ${
+                      activeTabPanel === "problems"
+                        ? "border-b-2 border-[#adc6ff] text-[#adc6ff] font-semibold"
+                        : "text-[#8c909f] hover:text-[#e5e2e1]"
+                    }`}
+                  >
+                    PROBLEMS (0)
+                  </button>
+
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={handleRunActiveFile}
+                      className="material-symbols-outlined text-[16px] text-emerald-400 hover:text-emerald-300 cursor-pointer p-0.5"
+                      title="Run Active File"
+                    >
+                      play_arrow
+                    </button>
+                    <button
+                      onClick={() =>
+                        setTerminalHistory((prev) => [
+                          ...prev,
+                          `user@codemesh:~/${roomId}$ # New Shell instance spawned`,
+                          `user@codemesh:~/${roomId}$ `,
+                        ])
+                      }
+                      className="material-symbols-outlined text-[16px] text-[#8c909f] hover:text-[#adc6ff] cursor-pointer p-0.5"
+                      title="New Terminal Instance"
+                    >
+                      add
+                    </button>
+                    <button
+                      onClick={() => setTerminalHistory([`user@codemesh:~/${roomId}$ `])}
+                      className="material-symbols-outlined text-[16px] text-[#8c909f] hover:text-[#adc6ff] cursor-pointer p-0.5"
+                      title="Clear Terminal"
+                    >
+                      delete
+                    </button>
+                    <button
+                      onClick={() => setIsTerminalMaximized(!isTerminalMaximized)}
+                      className="material-symbols-outlined text-[16px] text-[#8c909f] hover:text-[#adc6ff] cursor-pointer p-0.5"
+                      title={isTerminalMaximized ? "Restore Panel Height" : "Maximize Panel Height (75%)"}
+                    >
+                      {isTerminalMaximized ? "close_fullscreen" : "open_in_full"}
+                    </button>
+                    <button
+                      onClick={() => setShowBottomPanel(false)}
+                      className="material-symbols-outlined text-[16px] text-[#8c909f] hover:text-red-400 cursor-pointer p-0.5"
+                      title="Hide Terminal"
+                    >
+                      close
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 p-3 font-code text-xs text-[#e5e2e1] overflow-y-auto leading-relaxed">
+                  {activeTabPanel === "terminal" && (
+                    <div>
+                      {terminalHistory.map((line, idx) => (
+                        <div key={idx} className="whitespace-pre-wrap">
+                          {line.startsWith("user@codemesh") ? (
+                            <span className="text-[#8c909f]">{line}</span>
+                          ) : line.includes("[CodeMesh") || line.includes("✓") ? (
+                            <span className="text-[#adc6ff]">{line}</span>
+                          ) : line.includes("[Error]") || line.includes("[Syntax/Runtime Error]") || line.includes("[Runtime Exception]") ? (
+                            <span className="text-red-400">{line}</span>
+                          ) : (
+                            <span>{line}</span>
+                          )}
+                        </div>
+                      ))}
+                      <form onSubmit={handleTerminalSubmit} className="flex items-center gap-1 mt-1">
+                        <span className="text-[#8c909f]">user@codemesh:~/{roomId}$</span>
+                        <input
+                          type="text"
+                          value={terminalInput}
+                          onChange={(e) => setTerminalInput(e.target.value)}
+                          placeholder="type 'help' or 'run'..."
+                          className="flex-1 bg-transparent border-none text-[#adc6ff] font-code text-xs focus:outline-none p-0"
+                        />
+                      </form>
+                      <div ref={terminalEndRef} />
                     </div>
-                  ))}
-                  <form onSubmit={handleTerminalSubmit} className="flex items-center gap-1 mt-1">
-                    <span className="text-[#8c909f]">user@codemesh:~/{roomId}$</span>
-                    <input
-                      type="text"
-                      value={terminalInput}
-                      onChange={(e) => setTerminalInput(e.target.value)}
-                      placeholder="type 'help' or 'run'..."
-                      className="flex-1 bg-transparent border-none text-[#adc6ff] font-code text-xs focus:outline-none p-0"
-                    />
-                  </form>
-                  <div ref={terminalEndRef} />
-                </div>
-              )}
+                  )}
 
-              {activeTabPanel === "output" && (
-                <div className="text-[#8c909f] space-y-1">
-                  <div>[CodeMesh Realtime] Broadcast channel active: room_{roomId}</div>
-                  <div>[Memory Graph] pgvector indexing active across {files.length} project files.</div>
-                  <div>[Gemini Engine] Model &apos;gemini-2.0-flash&apos; ready for contextual AST queries.</div>
-                </div>
-              )}
+                  {activeTabPanel === "output" && (
+                    <div className="text-[#8c909f] space-y-1">
+                      <div>[CodeMesh Realtime] Broadcast channel active: room_{roomId}</div>
+                      <div>[Memory Graph] pgvector indexing active across {files.length} project files.</div>
+                      <div>[Gemini Engine] Model &apos;gemini-2.0-flash&apos; ready for contextual AST queries.</div>
+                    </div>
+                  )}
 
-              {activeTabPanel === "problems" && (
-                <div className="text-[#8c909f]">No syntax errors or lint warnings found.</div>
-              )}
+                  {activeTabPanel === "problems" && (
+                    <div className="text-[#8c909f] flex items-center gap-2">
+                      <span className="material-symbols-outlined text-emerald-400 text-[16px]">check_circle</span>
+                      <span>No syntax errors or lint warnings found.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* IDE Footer Telemetry Status Bar */}
+          <footer className="h-6 bg-[#0a0a0a] border-t border-[#2d2d2d] px-3 flex items-center justify-between text-[10px] font-code text-[#8c909f] select-none shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1 text-[#e5e2e1] hover:text-[#0066FF] cursor-pointer">
+                <span className="material-symbols-outlined text-[12px]">commit</span>
+                <span>main*</span>
+              </span>
+              <span className="flex items-center gap-1 text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span>0 errors, 0 warnings</span>
+              </span>
             </div>
-          </div>
+
+            <div className="flex items-center gap-3">
+              {!showBottomPanel && (
+                <button
+                  onClick={() => setShowBottomPanel(true)}
+                  className="text-[#0066FF] hover:underline flex items-center gap-1 cursor-pointer font-bold"
+                >
+                  <span className="material-symbols-outlined text-[13px]">terminal</span>
+                  <span>Show Terminal</span>
+                </button>
+              )}
+              <span>Ln 1, Col 1</span>
+              <span>UTF-8</span>
+              <span>Spaces: {tabSize}</span>
+              <span className="text-[#adc6ff]">{activeFile?.language || "python"}</span>
+              <span className="text-[#A855F7] flex items-center gap-1 font-semibold">
+                <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
+                <span>Gemini 2.0 Flash ⚡</span>
+              </span>
+              <span className="text-neutral-500">4.2ms</span>
+            </div>
+          </footer>
         </div>
 
         {/* Right Drawer (Team Discussion Chat) */}

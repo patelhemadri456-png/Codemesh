@@ -3,14 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  getUserSession,
-  logoutUser,
-  getThemePreference,
-  setThemePreference,
-  UserSession,
-  AppTheme,
-} from "@/lib/authSession";
+import { getUserSession, logoutUser, UserSession } from "@/lib/authSession";
 
 interface NavbarProps {
   variant?: "landing" | "dashboard" | "ide";
@@ -26,46 +19,26 @@ export default function Navbar({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<UserSession>(getUserSession());
-  const [theme, setTheme] = useState<AppTheme>("dark");
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     setUser(getUserSession());
-    const initialTheme = getThemePreference();
-    setTheme(initialTheme);
-    if (initialTheme === "light") {
-      document.documentElement.classList.add("light");
-      document.documentElement.classList.remove("dark");
-    } else {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
-    }
+
+    // Ensure dark theme is active
+    document.documentElement.classList.add("dark");
+    document.documentElement.classList.remove("light");
+    document.documentElement.setAttribute("data-theme", "dark");
 
     const handleAuthChange = () => {
       setUser(getUserSession());
     };
 
-    const handleThemeChange = (e: Event) => {
-      const custom = e as CustomEvent<{ theme: AppTheme }>;
-      if (custom.detail?.theme) {
-        setTheme(custom.detail.theme);
-      }
-    };
-
     window.addEventListener("codemesh:auth_change", handleAuthChange);
-    window.addEventListener("codemesh:theme_change", handleThemeChange);
     return () => {
       window.removeEventListener("codemesh:auth_change", handleAuthChange);
-      window.removeEventListener("codemesh:theme_change", handleThemeChange);
     };
   }, []);
-
-  const toggleTheme = () => {
-    const nextTheme: AppTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    setThemePreference(nextTheme);
-  };
 
   const handleLogout = () => {
     logoutUser();
@@ -74,7 +47,7 @@ export default function Navbar({
   };
 
   return (
-    <nav className="h-14 border-b border-white/10 px-4 md:px-6 flex items-center justify-between bg-[#000000]/90 backdrop-blur-xl sticky top-0 z-40">
+    <nav className="h-14 border-b border-white/10 px-4 md:px-6 flex items-center justify-between bg-[#000000]/90 backdrop-blur-xl sticky top-0 z-40 select-none">
       {/* Brand & Logo */}
       <div className="flex items-center gap-6">
         <Link href="/" className="flex items-center gap-2.5 group">
@@ -124,17 +97,6 @@ export default function Navbar({
 
       {/* Right Controls & Profile */}
       <div className="flex items-center gap-3">
-        {/* Quick Theme Switcher Button */}
-        <button
-          onClick={toggleTheme}
-          title={`Switch to ${theme === "dark" ? "Light" : "Dark"} mode`}
-          className="p-1.5 rounded-full border border-white/10 hover:border-white/20 text-neutral-400 hover:text-white transition-colors flex items-center justify-center bg-white/5"
-        >
-          <span className="material-symbols-outlined text-[16px]">
-            {theme === "dark" ? "light_mode" : "dark_mode"}
-          </span>
-        </button>
-
         {/* User Status / Avatar */}
         {mounted && user.isLoggedIn ? (
           <div className="relative">
@@ -186,7 +148,7 @@ export default function Navbar({
         ) : (
           <Link
             href="/auth"
-            className="px-4 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-all"
+            className="px-4 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-all shadow-sm"
           >
             Sign In
           </Link>

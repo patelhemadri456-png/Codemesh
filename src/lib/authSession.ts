@@ -56,9 +56,11 @@ export function setThemePreference(theme: AppTheme): void {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
       document.documentElement.classList.remove("light");
+      document.documentElement.setAttribute("data-theme", "dark");
     } else {
       document.documentElement.classList.add("light");
       document.documentElement.classList.remove("dark");
+      document.documentElement.setAttribute("data-theme", "light");
     }
     window.dispatchEvent(new CustomEvent("codemesh:theme_change", { detail: { theme } }));
   } catch (e) {
